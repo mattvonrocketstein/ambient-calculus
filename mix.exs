@@ -2,9 +2,10 @@ defmodule AmbientCalculus.Mixfile do
   use Mix.Project
 
   def project do
-    [app: :ambientcalculus,
+    [app: :ambient,
      version: "0.1.0",
      elixir: "~> 1.3",
+     default_task: "app.start",
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
      test_coverage: [
@@ -19,11 +20,11 @@ defmodule AmbientCalculus.Mixfile do
   def application do
     [applications: [
       :logger,
-      #:Ambient.App,
       ],
 
      mod: {
        Ambient.App, [Node.self]
+       #KV.App, []
        }
     ]
   end

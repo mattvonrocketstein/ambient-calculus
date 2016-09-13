@@ -5,7 +5,7 @@ defmodule Ambient.TopLevel do
   end
   def get() do
     pid = Process.whereis(get_name())
-    is_pid = Kernel.is_pid(pid)
+    pid = Kernel.is_pid(pid)
     case pid do
         nil ->
           {:ok, pid} = Ambient.TopLevel.start_link()

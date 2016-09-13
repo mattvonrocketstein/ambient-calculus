@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.Ambient.Calculus do
+defmodule Mix.Tasks.Observe do
   @moduledoc """
   """
 
@@ -14,12 +14,7 @@ defmodule Mix.Tasks.Ambient.Calculus do
   @doc """
   """
   def main([]) do
-    IO.puts("No arguments given!")
+    :observer.start()
   end
 
-  @doc """
-  """
-  def main([fname]) do
-    IO.puts("Given a filename #{fname}")
-  end
 end

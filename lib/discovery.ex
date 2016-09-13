@@ -1,33 +1,41 @@
+
 defmodule Ambient.Discovery do
-
+  require Logger
   use GenServer
-  @pid __MODULE__
 
-  def get() do
-    pid = Process.whereis(@pid)
-    is_pid = Kernel.is_pid(pid)
-    case pid do
-        nil ->
-          {:ok, pid} = Ambient.Discovery.start_link()
-          pid
-        _ ->
-          pid
-    end
-  end
   def start_link() do
       Functions.write_red("Starting Discovery")
-      GenServer.start_link(__MODULE__, [name: @pid])
+      GenServer.start_link(__MODULE__, [], name: __MODULE__)
   end
-  def handle_cast(:register, _from) do
-    Functions.write_red("Registering node with SLP")
-    ExSlp.Service.register()
-    {:noreply, nil}
+  def init(state) do
+    Logger.info ("Ambient.Discovery.init")
+    {:ok, state}
+  end
+  def register() do
+    GenServer.call(__MODULE__, :register)
+    #IO.puts("results: #{result}")
+  end
+  def handle_call(:register, _from, state) do
+    Logger.info Functions.red("Registering node with SLP")
+    {:ok, result} = ExSlp.Service.register()
+    #Functions.write_red("registration result: #{inspect result}")
+    {:reply, :ok, result}
+  end
+  def loop(count\\0) do
+    :timer.sleep(4000)
+    #if count==0 do
+    IO.puts "running first discover task #{count}"
+    #end
+    discover()
+    loop(count+1)
   end
 
-  def handle_call(:discover, _from) do
+  def discover(), do: GenServer.call(__MODULE__, :discover, 10000)
+
+  def handle_call(:discover, _from, state) do
     Functions.write_red("Discovering with SLP")
     nodes = ExSlp.Service.discover()
-    Enum.filter(
+    result = Enum.filter(
       nodes,
       fn node ->
         case ExSlp.Service.connect(node) do
@@ -39,6 +47,6 @@ defmodule Ambient.Discovery do
             nil
         end
       end)
-    {:reply, []}
+    {:reply, result, state}
   end
 end
