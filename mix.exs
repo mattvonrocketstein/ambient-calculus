@@ -44,6 +44,9 @@ defmodule AmbientCalculus.Mixfile do
         git: "https://github.com/icanhazbroccoli/ex_slp_tk.git",
         tag: "76a2f" },
 
+      #
+      {:apex, "~>0.5.2"},
+
       # a linter for elixir code
       {:dogma, "~> 0.1", only: :dev},
 

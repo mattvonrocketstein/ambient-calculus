@@ -21,6 +21,17 @@ defmodule Ambient.Algebra do
     If no ambient m can be found, the operation blocks until a time when such an ambient exists.
     If more than one ambient m exists, any one of them can be chosen.
   """
+  def get_supervisor(ambient) do
+  end
+  def add_program(ambient, p) do
+    msg = "Adding program [#{inspect p}] to "
+    msg = msg <> "[#{inspect Ambient.to_string(ambient)}]"
+    Logger.info msg
+    Agent.get(
+      ambient,
+      fn namespace -> Map.get(namespace,:name) end)
+    #ambient_super = Agent.get Ambient.Supervisor.add_child()
+  end
   def open(n) do
     IO.puts("closing #{Ambient.name(n)}")
     parent = Ambient.parent(n)

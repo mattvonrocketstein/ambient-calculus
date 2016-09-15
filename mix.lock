@@ -1,4 +1,5 @@
-%{"certifi": {:hex, :certifi, "0.4.0", "a7966efb868b179023618d29a407548f70c52466bf1849b9e8ebd0e34b7ea11f", [:rebar3], []},
+%{"apex": {:hex, :apex, "0.5.2", "bc4d44c3f824d70cd295fc2fd395243df34a1c1659f5ef17381f5fbee1c7f00e", [:mix], []},
+  "certifi": {:hex, :certifi, "0.4.0", "a7966efb868b179023618d29a407548f70c52466bf1849b9e8ebd0e34b7ea11f", [:rebar3], []},
   "coverex": {:hex, :coverex, "1.4.10", "f6b68f95b3d51d04571a09dd2071c980e8398a38cf663db22b903ecad1083d51", [:mix], [{:httpoison, "~> 0.9", [hex: :httpoison, optional: false]}, {:poison, "~> 1.5 or ~> 2.0", [hex: :poison, optional: false]}]},
   "dialyxir": {:hex, :dialyxir, "0.3.5", "eaba092549e044c76f83165978979f60110dc58dd5b92fd952bf2312f64e9b14", [:mix], []},
   "dogma": {:hex, :dogma, "0.1.7", "927f76a89a809db96e0983b922fc899f601352690aefa123529b8aa0c45123b2", [:mix], [{:poison, ">= 1.0.0", [hex: :poison, optional: false]}]},

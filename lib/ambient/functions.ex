@@ -1,4 +1,5 @@
 require Logger
+
 defmodule Functions do
   def noop(), do: :NOOP
   def red(msg), do: IO.ANSI.red()<>msg<>IO.ANSI.reset()
