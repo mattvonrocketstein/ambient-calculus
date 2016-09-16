@@ -36,10 +36,13 @@ defmodule Ambient.Registration do
   end
 
   def show_status(x) do
-    IO.puts "step: #{inspect x}"
-    IO.puts "this-node: #{Atom.to_string(Node.self())}"
-    IO.puts "node-list: "<>Enum.join(Node.list()," ")
-    IO.puts "ambient-registry:\n#{inspect get()}"
+    header = ""#step #{Functions.red inspect x} for "
+    header= header <> "Node[#{Functions.red Atom.to_string(Node.self())}]"
+    IO.puts header
+    #IO.puts "this-node: #{Atom.to_string(Node.self())}"
+    IO.puts "AmbientCluster: "<>Enum.join(Node.list(),", ")
+    IO.puts "AmbientRegistry:\n"
+    Apex.ap get()
   end
 
   @doc """

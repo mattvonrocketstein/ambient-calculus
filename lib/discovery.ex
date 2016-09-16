@@ -20,7 +20,7 @@ defmodule Discovery do
       fn {k,v}-> {k,v} end)|>Enum.into(%{})
   end
   def discover(failures\\%{}) do
-    failures = act_on_failures(failures)
+    #failures = act_on_failures(failures)
     slp_services = ExSlp.Service.discover()
     {:ok, this_hostname} = :inet.gethostname()
     #IO.puts "..mapping #{this_hostname} to 127.0.0.1.."
@@ -55,7 +55,7 @@ defmodule Discovery do
               failures
           end # case
         end # unless
-        discover(failure_report)
+        discover()
       end)
       msg = Functions.red("SLP Discovery: ")
       #Logger.info msg <> "#{inspect result}"
