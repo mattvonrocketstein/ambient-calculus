@@ -5,10 +5,10 @@ defmodule Universe do
   def start_local_ambient() do
     name = Node.self()
     {:ok, ambient} = Ambient.start_link(name)
-    Ambient.Registration.get_ambient(name)
-    |> Ambient.put(
-      :registry,
-      Ambient.Registration.myself())
+    #Ambient.Registration.get_ambient(name)
+    #|> Ambient.put(
+    #  :registry,
+    #  registrar)
   end
 
   def mainloop() do
@@ -19,22 +19,16 @@ defmodule Universe do
   @doc """
   """
   def start_registration_subsystem() do
-    Ambient.Registration.start_link()
+    Ambient.Registration.start_link(Node.self())
     Universe.start_local_ambient()
   end
-  def root_ambients() do
-    Enum.map(cluster_members(), fn node_name ->
-
-      IO.puts "looking up #{node_name}"
-      Ambient.Registration.get_ambient(node_name)
-    end)
-  end
   def root_registrations() do
-    root_ambients()
-    |> Enum.map(fn root_ambient ->
-      Ambient.get(root_ambient, :registry)
+    cluster_members()
+    |> Enum.map(fn node_atom ->
+      Ambient.Registration.get_for_node(node_atom)
     end)
   end
+
   def sync_registry() do
     root_registrations()
     |> Enum.map(fn pid ->
@@ -50,7 +44,8 @@ defmodule Universe do
   @doc """
   """
   def display(x\\0) do
-    Ambient.Registration.sync_globals()
+    :timer.sleep(1000)
+    Logger.info "System Summary"
     header = ""#step #{Functions.red inspect x} for "
     node_name = Atom.to_string(Node.self())
     header= header <> "Neighborhood[#{Functions.red node_name}]"
@@ -58,9 +53,10 @@ defmodule Universe do
     #IO.puts "this-node: #{Atom.to_string(Node.self())}"
     IO.puts "ClusterMembers: " <> Enum.join(cluster_members,", ")
     IO.puts "AmbientRegistry:\n"
-    result = Ambient.Registration.get()
+    {:ok, registrar} = Ambient.Registration.default()
+    result = Ambient.Registration.get(registrar)
     |> Enum.map(fn {aname, rdata}->
-      namespace = Ambient.Registration.get_ambient(aname)
+      namespace = Ambient.Registration.get_ambient(registrar, aname)
       |>Ambient.namespace()
       { aname,
         Map.put(
@@ -70,6 +66,7 @@ defmodule Universe do
     end)
     |>Enum.into(%{})
     Apex.ap result
+    #Apex.ap Universe.root_ambients()
   end
 
 end
@@ -92,6 +89,11 @@ defmodule Universe.Supervisor do
         id: SLPNodeDiscover,
         restart: :transient,
         ),
+        # periodic worker worker who starts the registration agent
+        worker(
+            Task, [&Universe.Registration.sync_globals/0 ],
+            id: :startUniversalRegistration,
+            restart: :transient),
 
       # periodic worker worker who starts the registration agent
       worker(

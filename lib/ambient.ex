@@ -25,11 +25,11 @@ defmodule Ambient do
   end
   def start_link(atom_name, parent, sup_pid) when is_atom(atom_name) do
     string_name = Atom.to_string(atom_name)
-    registration_pid = Ambient.Registration.myself()
+    {:ok, registrar} = Ambient.Registration.default()
     msg = Functions.red("Ambient[#{string_name}].start_link: ")
-    case registration_pid != nil && Process.alive?(registration_pid) do
+    case registrar != nil && Process.alive?(registrar) do
       false ->
-        Logger.warn ("Registration must be started before ambients can be created.  pid #{registration_pid}")
+        Logger.warn ("Registration must be started before ambients can be created.  pid #{registrar}")
         System.halt(1)
       true ->
         Logger.info "Starting ambient: #{[string_name]}"
@@ -48,7 +48,7 @@ defmodule Ambient do
         {:ok, pid} = Agent.start_link(
           fn -> namespace end,
           name: atom_name)
-        Ambient.Registration.register(atom_name, pid)
+        Ambient.Registration.register(registrar, atom_name, pid)
         :global.register_name(atom_name, pid)
         Logger.info msg<>"finished"
         {:ok, pid}
