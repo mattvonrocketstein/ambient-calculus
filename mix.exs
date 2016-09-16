@@ -20,6 +20,7 @@ defmodule AmbientCalculus.Mixfile do
   def application do
     [applications: [
       :logger,
+    
       ],
 
      mod: {

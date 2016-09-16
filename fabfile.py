@@ -5,17 +5,14 @@ CLUSTER_HOSTNAME='127.0.0.1'
 COOKIE = "AmbientCalculus"
 DEFAULT_MIX_CMD = "mix run --no-halt"
 
-def consul():
-    cmd = "docker run {name} -it {net} {env} consul agent {dp} {bind}"
-    cmd = cmd.format(
-        name="--name ambient-consul",
-        net="--net=host",
-        env="-e 'CONSUL_LOCAL_CONFIG=`cat consul.config`' ",
-        dp='-dp 8500:8500/tcp',
-        bind="-bind={external_ip}".format(
-            external_ip="0.0.0.0"),
-    )
+def observe():
+    cmd = "iex --name AmbientObserver@127.0.0.1 -S mix observe"
     api.local(cmd)
+
+def slp_flush():
+    slp_daemon_stop()
+    slp_daemon_start()
+
 def slp_daemon_start():
     cmd = ("docker run -d "
            "-p 427:427/tcp "

@@ -19,11 +19,9 @@ defmodule Discovery do
       fn {k,v}-> v <= 3 end,
       fn {k,v}-> {k,v} end)|>Enum.into(%{})
   end
-  def discover(failures\\%{}) do
-    #failures = act_on_failures(failures)
+  def discover() do
     slp_services = ExSlp.Service.discover()
     {:ok, this_hostname} = :inet.gethostname()
-    #IO.puts "..mapping #{this_hostname} to 127.0.0.1.."
     result = Enum.filter(
       slp_services,
       fn service_string ->
@@ -35,24 +33,21 @@ defmodule Discovery do
           to_string(service_string),
           to_string(this_hostname),
           "127.0.0.1")
-        num_failures = 1 + (Map.get(failures, service_string) || 0)
-        fresh_fail = Map.put(failures, normalized_string, num_failures)
         should_skip = normalized_string==Atom.to_string(Node.self())
-        failure_report = failures
         unless(should_skip) do
-          failure_report = case ExSlp.Service.connect(normalized_string) do
+          case ExSlp.Service.connect(normalized_string) do
             # see http://elixir-lang.org/docs/stable/elixir/Node.html#connect/1
             :ignored ->
               # Node.connect() ignored a down host
-              Logger.info("Connection to #{inspect normalized_string} ignored")
-              fresh_fail
+              #Logger.info("Connection to #{inspect normalized_string} ignored")
+              nil
             false ->
               # Connection failed
-              Logger.info("Connection to #{inspect normalized_string} failed #{inspect num_failures}")
-              fresh_fail
+              #Logger.info("Connection to #{inspect normalized_string} failed")
+              nil
             true ->
-              # Connection successful (but not necessarily new)
-              failures
+              # Connection is successful (but not necessarily new)
+              normalized_string
           end # case
         end # unless
         discover()

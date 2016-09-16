@@ -7,7 +7,7 @@ defmodule Ambient.Registration do
   def start_link() do
     registry = %{}
     msg = Functions.red("Ambient.Registration: ")
-    result = if( Process.whereis(__MODULE__)!=nil) do
+    result = if( Process.whereis(@name)!=nil) do
       {:error, :already_started}
     else
       {:ok, pid} = Agent.start_link(
@@ -24,25 +24,29 @@ defmodule Ambient.Registration do
   """
   def myself, do: Process.whereis(@name)
 
+  def sync_globals() do
+    registrations = get()
+    Enum.map(registrations, fn {k,v} ->
+      Logger.info "  sync name: #{inspect k}"
+      :global.register_name(k, Map.get(v, :pid))
+    end)
+  end
+
+  @doc """
+  """
+  def get_ambient(name) when is_atom(name) do
+    Map.get(get(name), :pid)
+  end
+  def get_ambient(name) when is_bitstring(name) do
+    name = String.to_atom(name)
+    :global.whereis_name(name)#get_ambient(name) || 
+  end
+
   @doc """
   """
   def get(), do: Agent.get(myself(), fn registry -> registry end)
   def get(name) do
-    Agent.get(
-      myself(),
-      fn registry ->
-        Map.get(registry, name)
-      end) || :global.whereis_name(name)
-  end
-
-  def show_status(x) do
-    header = ""#step #{Functions.red inspect x} for "
-    header= header <> "Node[#{Functions.red Atom.to_string(Node.self())}]"
-    IO.puts header
-    #IO.puts "this-node: #{Atom.to_string(Node.self())}"
-    IO.puts "AmbientCluster: "<>Enum.join(Node.list(),", ")
-    IO.puts "AmbientRegistry:\n"
-    Apex.ap get()
+    Map.get( get(), name)
   end
 
   @doc """
