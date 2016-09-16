@@ -7,8 +7,9 @@ defmodule Ambient.Supervisor do
       [ Atom.to_string(ambient_name) ]
       )
   end
-  def init([ambient_name]) do
-    Logger.info Functions.red "Starting Ambient.Supervisor for Ambient `#{ambient_name}`"
+  def init([ambient_name]) when is_bitstring(ambient_name) do
+    msg = Functions.red "Ambient[#{ambient_name}].Supervisor: "
+    Logger.info(msg<>"starting")
     programs = []
     children = programs ++ []
     opts = [strategy: :one_for_one]

@@ -11,12 +11,11 @@ defmodule Ambient do
     Map.get(Ambient.Registration.get(), ambient_name)
   end
   def to_string(ambient) when is_pid(ambient) do
-    "Ambient[#{Ambient.get_name(ambient)}]"
+    "Ambient[#{inspect Ambient.get_name(ambient)}]"
   end
 
   @doc """
   Starts a Ambient with the given `name`.
-
   The name is given as a name so we can identify
   the ambient by name instead of using a PID.
   """
@@ -25,20 +24,19 @@ defmodule Ambient do
     start_link(String.to_atom(string_name), parent, sup_pid)
   end
   def start_link(atom_name, parent, sup_pid) when is_atom(atom_name) do
-    name = atom_name
+    string_name = Atom.to_string(atom_name)
     registration_pid = Ambient.Registration.myself()
+    msg = Functions.red("Ambient[#{string_name}].start_link: ")
     case registration_pid != nil && Process.alive?(registration_pid) do
       false ->
-        IO.puts("Registration must be started before ambients can be created.  pid #{registration_pid}")
+        Logger.warn ("Registration must be started before ambients can be created.  pid #{registration_pid}")
         System.halt(1)
       true ->
-        Logger.info "Starting ambient: #{[name]}"
+        Logger.info "Starting ambient: #{[string_name]}"
         sup_pid = cond do
           sup_pid == nil ->
-            msg = Functions.red("Ambient[#{name}].start_link: ")
-            msg = msg <> "creating my supervisor "
-            Logger.info msg
-            {:ok, sup_pid} = Ambient.Supervisor.start_link(name)
+            Logger.info msg <> "creating my supervisor "
+            {:ok, sup_pid} = Ambient.Supervisor.start_link(atom_name)
             sup_pid
           true ->
             sup_pid
@@ -46,12 +44,13 @@ defmodule Ambient do
         namespace = Map.new
         |> Map.put(:parent, parent)
         |> Map.put(:super, sup_pid)
-        |> Map.put(:name, name)
+        |> Map.put(:name, atom_name)
         {:ok, pid} = Agent.start_link(
           fn -> namespace end,
-          name: Ambient.to_atom(name))
-        Ambient.Registration.register(name, pid)
-        Logger.info "Finished starting ambient: #{inspect [name, pid]}"
+          name: atom_name)
+        Ambient.Registration.register(atom_name, pid)
+        :global.register_name(atom_name, pid)
+        Logger.info msg<>"finished"
         {:ok, pid}
     end
   end
@@ -64,8 +63,8 @@ defmodule Ambient do
   end
   def namespace(ambient) do
     namespace = Ambient.get(ambient)
-    {_val, namespace} = namespace|>Map.pop(:parent)
-    {_val, namespace} = namespace|>Map.pop(:name)
+    {_val, namespace} = namespace |> Map.pop(:parent)
+    {_val, namespace} = namespace |> Map.pop(:name)
     namespace
   end
 
@@ -111,28 +110,6 @@ defmodule Ambient do
   @doc """
   """
   def get_supervisor(ambient), do: Ambient.get(ambient, :super)
-
-  @doc """
-  Answers how many (concurrent) programs this ambient is running
-  """
-  def count(ambient) do
-      Ambient.get(ambient, :super)
-      |> Supervisor.count_children()
-      |> Enum.count
-  end
-
-  @doc """
-  Entry Capability (aka "in")
-  An entry capability, in m, can be used in the action: "in m.P"
-  which instructsthe ambientsurrounding in m. P to enter a sibling ambient named m.
-  TODO:
-    If no sibling m can be found, the operation blocks until a time when such a sibling
-    exists. If more than one m sibling exists, any one of them can be chosen.
-  """
-  def enter(n, m, _prog \\ Functions.noop) do
-    Ambient.put(n, :parent, m)
-    Ambient.put(m, Ambient.get(n, :name), n)
-  end
 
   @doc """
   """

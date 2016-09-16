@@ -21,17 +21,6 @@ defmodule Ambient.Algebra do
     If no ambient m can be found, the operation blocks until a time when such an ambient exists.
     If more than one ambient m exists, any one of them can be chosen.
   """
-  def get_supervisor(ambient) do
-  end
-  def add_program(ambient, p) do
-    msg = "Adding program [#{inspect p}] to "
-    msg = msg <> "[#{inspect Ambient.to_string(ambient)}]"
-    Logger.info msg
-    Agent.get(
-      ambient,
-      fn namespace -> Map.get(namespace,:name) end)
-    #ambient_super = Agent.get Ambient.Supervisor.add_child()
-  end
   def open(n) do
     IO.puts("closing #{Ambient.name(n)}")
     parent = Ambient.parent(n)
@@ -58,4 +47,42 @@ defmodule Ambient.Algebra do
     Ambient.pop(parent, Ambient.name(ambient))
     ambient
   end
+  @doc """
+  Answers how many (concurrent) programs this ambient is running
+  """
+  def count(ambient) do
+      Ambient.get(ambient, :super)
+      |> Supervisor.count_children()
+      |> Enum.count
+  end
+
+  @doc """
+  Entry Capability (aka "in")
+  An entry capability, in m, can be used in the action: "in m.P"
+  which instructsthe ambientsurrounding in m. P to enter a sibling ambient named m.
+  TODO:
+    If no sibling m can be found, the operation blocks until a time when such a sibling
+    exists. If more than one m sibling exists, any one of them can be chosen.
+  """
+  def enter(n, m, _prog \\ Functions.noop) do
+    Ambient.put(n, :parent, m)
+    Ambient.put(m, Ambient.get(n, :name), n)
+  end
+
+  @doc """
+  Adds program `p` to the set of concurrent programs executing inside `ambient`.
+  (Implementation: adding `p` to the child-list for the supervisor of `ambient`)
+
+  """
+  def add_program(ambient, p) do
+    msg = "Adding program [#{inspect p}] to "
+    msg = msg <> "[#{inspect Ambient.to_string(ambient)}]"
+    Logger.info msg
+    super_pid = Ambient.get_supervisor(ambient)
+    # FIXME: is this spec correct?
+    #Ambient.Supervisor.add_child(
+    #  super_pid,
+    #  Task([fn -> p end]))
+  end
+
 end

@@ -27,7 +27,7 @@ defmodule Universe.Supervisor do
       worker(
         Task, [ &Discovery.discover/0 ],
         id: SLPNodeDiscover,
-        restart: :permanent,
+        restart: :transient,
         ),
       # periodic worker worker who starts the registration agent
       worker(
@@ -45,11 +45,16 @@ defmodule Universe.Supervisor do
         Task, [&main/0],
         id: :main,
         restart: :transient),
-        # Just an post-bootstrap entry point to experiment with the system
+
+        # display loop
         worker(
           Task, [fn ->
-            IO.puts("sleeping");
-            :timer.sleep(1000)
+            Enum.map(
+              0..10, fn x ->
+                  Ambient.Registration.show_status(x)
+                  #IO.puts Node.list()
+                  :timer.sleep(x*2*1000)
+                end)
           end],
           id: :sleeper,
           restart: :permanent),
