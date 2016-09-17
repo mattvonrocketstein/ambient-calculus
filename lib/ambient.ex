@@ -129,7 +129,9 @@ defmodule Ambient do
 
   def get_supervisor(ambient), do: Ambient.get_from_ambient(ambient, :super)
   def get_registrar(ambient), do: get_from_ambient(ambient, :registrar)
+
   def get_ambients(ambient), do: get_from_ambient(ambient, :ambients)
+  def children(ambient), do: get_ambients(ambient)
 
   @doc """
   Returns an answer for whether this ambient is
@@ -159,7 +161,7 @@ defmodule Ambient do
         Map.new) }
     end)
   end
-  def add_ambient(ambient, new_parent) do
+  defp add_ambient(new_parent, ambient) do
     Agent.update(new_parent, fn ambient_data ->
       ambients = Map.get(ambient_data, :ambients)
       |> Map.put(Ambient.name(ambient), ambient)
@@ -173,9 +175,14 @@ defmodule Ambient do
     current_parent = Ambient.get_parent(ambient)
     Ambient.remove_ambient(current_parent, ambient)
     Ambient.add_ambient(new_parent, ambient)
+    Ambient.set_parent(ambient, new_parent)
+  end
+  defp set_parent(ambient,new_parent) do
     Agent.update(
       ambient,
-      fn ambient_data -> %{ambient_data|parent: new_parent} end)
+      fn ambient_data ->
+        %{ambient_data|parent: new_parent}
+      end)
   end
 
 end

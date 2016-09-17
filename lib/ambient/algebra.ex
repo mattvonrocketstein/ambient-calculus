@@ -22,12 +22,7 @@ defmodule Ambient.Algebra do
     If more than one ambient m exists, any one of them can be chosen.
   """
   def open(n) do
-    IO.puts("closing #{Ambient.name(n)}")
-    parent = Ambient.parent(n)
-    namespace = Ambient.namespace(n)
-    Ambient.update(parent,namespace)
-    :ok = Agent.stop(n, :opened)
-    parent
+    Logger.info("opening #{Ambient.name(n)}")
   end
 
   @doc """
@@ -79,8 +74,7 @@ defmodule Ambient.Algebra do
       _ ->
         nil
     end
-    Ambient.remove_parent(n)
-    Ambient.set_parent(n, m)
+    Ambient.reset_parent(n,m)
   end
 
   @doc """
