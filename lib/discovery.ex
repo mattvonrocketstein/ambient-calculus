@@ -49,8 +49,9 @@ defmodule Discovery do
               :noop
             true ->
               # Connection is successful (but not necessarily new)
-              if Display.display_flag do
-                Logger.info("connected: #{inspect normalized_string}")                
+              if Display.enabled? do
+                Logger.info(Functions.red("Discovery.discover: ")<>"connected")
+                Logger.info("#{inspect normalized_string}")
               end
           end # case
         end # unless
@@ -58,9 +59,9 @@ defmodule Discovery do
       msg = Functions.red("SLP Discovery: ")
   end
   def register() do
-    {hostname, port} ={"127.0.0.1","65535"}
+    {hostname, port} ={"127.0.0.1", "65535"}
     {:ok, result} = ExSlp.Service.register()#{}"service:exslp://#{hostname},#{port}")
-    if Display.display_flag do
+    if Display.enabled? do
       Logger.info Functions.red("Ran registration task:")<>" ok"
     end
     :timer.sleep(5000)

@@ -2,8 +2,10 @@
 # and its dependencies with the aid of the Mix.Config module.
 use Mix.Config
 
+import_config "#{Mix.env}.exs"
+
 config :logger,
-  format: "$time $metadata[$level] $levelpad$message\n",
+  format: "$time $metadata[$level] $levelpad$message",
   metadata: [:pid],
   backends: [:console], # default, support for additional log sinks
   compile_time_purge_level: :info # purges logs with lower level than this

@@ -6,6 +6,23 @@ defmodule Entry do
 end
 
 defmodule Ambient.Registration do
+  @doc """
+   Returns a hash of %{node_name => registrar_pid}
+   The hosting node is ignored.
+  """
+  def registrars() do
+    Ambient.Topology.cluster_members()
+    |> Enum.map(
+      fn node_atom ->
+        case Ambient.Registration.get_for_node(node_atom) do
+          {:ok, pid} ->
+            {node_atom, pid}
+          {:error, _} ->
+            nil
+        end
+      end)
+    |> Enum.filter(fn x -> x != nil end)
+  end
   def default() do
     get_for_node(Node.self())
   end

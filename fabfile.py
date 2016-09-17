@@ -3,7 +3,7 @@ from fabric import api
 
 CLUSTER_HOSTNAME='127.0.0.1'
 COOKIE = "AmbientCalculus"
-DEFAULT_MIX_CMD = "mix run --no-halt"
+DEFAULT_MIX_CMD = "mix run"
 
 def observe():
     cmd = "iex --name AmbientObserver@127.0.0.1 -S mix observe"
@@ -34,7 +34,9 @@ def slp_flush():
     slp_daemon_start()
 
 def display(x=1):
-    with api.shell_env(DISPLAY_LOOP="yes"):
+    with api.shell_env(
+        MIX_ENV='display',
+        DISPLAY_LOOP="yes"):
         ambient_cluster(
             name='display')
 
@@ -44,9 +46,11 @@ def script(_script):
         mix_cmd='-S {0}'.format(_script))
 
 def shell(name='AmbientShell'):
-    ambient_cluster(
-        name=name,
-        mix_cmd='mix run')
+    with api.shell_env(
+        MIX_ENV='display',):
+        ambient_cluster(
+            name=name,
+            mix_cmd='mix run')
 
 DEFAULT_ERL_CONFIG = "sys.config"
 def ambient_cluster(name='u1', mix_cmd=None):
