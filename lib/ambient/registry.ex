@@ -1,5 +1,6 @@
 require Logger
 import Apex.AwesomeDef
+
 defmodule Entry do
   defstruct name: "UnknownAmbient", pid: nil, node: "UnknownNode"
 end
@@ -79,24 +80,27 @@ defmodule Ambient.Registration do
   def register(registrar, name, ambient) when Kernel.is_pid(ambient) do
     %Entry{name: name, pid: ambient}
     {:ok, put(registrar, name, :pid, ambient)}
+    :global.re_register_name(name, ambient)
   end
 
   @doc """
+  Removes an ambient registration from the given registar
+  NOTE: this does not by itself stop the Agent for that
   """
   def deregister(registrar, ambient_name) when is_bitstring(ambient_name) do
     ambient_name = String.to_atom(ambient_name)
     deregister(registrar, ambient_name)
   end
   def deregister(registrar, ambient_pid) when is_pid(ambient_pid) do
-    ambient_name = Ambient.get(ambient_pid, :name)
+    ambient_name = Ambient.get_name(ambient_pid)
     deregister(registrar, ambient_name)
   end
   def deregister(registrar, name) when is_atom(name) do
-    registrar = registrar||Ambient.Registration.default()
-    Agent.update(
+    registrar = registrar || Ambient.Registration.default()
+    Agent.get_and_update(
       registrar,
       fn registry ->
-        Map.pop(registry, name)
+        {_val, updated_registry} = Map.pop(registry, name)
       end)
   end
   @doc """

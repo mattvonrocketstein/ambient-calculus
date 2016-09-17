@@ -67,6 +67,7 @@ defmodule Universe do
     Map.values(nonlocal_ambients())
     |> Enum.reduce(%{}, fn(x, acc) -> Map.merge(acc,x) end)
   end
+
   @doc """
   Returns a map of %{nodename => %{ambient_name => pid}}
   """
@@ -86,15 +87,15 @@ defmodule Universe do
     |> Enum.into(Map.new)
   end
 
-  def sync_ambients() do
-    Enum.map(
-      nonlocal_ambients(),
-      fn {ambient_name, ambient_pid} ->
-        {ambient_name,
-        :global.re_register_name(
-          ambient_name, ambient_pid)}
-      end)
-  end
+  #def sync_ambients() do
+  #  Enum.map(
+  #    nonlocal_ambients(),
+  #    fn {ambient_name, ambient_pid} ->
+  #      {ambient_name,
+  #      :global.re_register_name(
+  #        ambient_name, ambient_pid)}
+  #    end)
+  #end
 
   @doc """
   Returns a list of atoms that represent other
@@ -110,6 +111,7 @@ defmodule Universe do
   def display(x\\0) do
     :timer.sleep(1000)
     Logger.info "System Summary"
+    IO.puts "[vsn=#{inspect Functions.version(Ambient)}]"
     header = ""#step #{Functions.red inspect x} for "
     node_name = Atom.to_string(Node.self())
     header= header <> "Neighborhood[#{Functions.red node_name}]"
@@ -121,12 +123,11 @@ defmodule Universe do
     result = Ambient.Registration.get(registrar)
     |> Enum.map(fn {aname, rdata}->
       namespace = Ambient.Registration.get_ambient(registrar, aname)
-      |>Ambient.namespace()
-      { aname,
-        Map.put(
-          rdata,
-          :namespace,
-          namespace)}
+      |> Ambient.namespace()
+      tmp = rdata
+      |> Map.put(:namespace, namespace)
+      |> Map.put(:ambients, Ambient.get_ambients(aname))
+      { aname, tmp}
     end)
     |>Enum.into(%{})
     Apex.ap result
@@ -137,7 +138,7 @@ defmodule Universe do
     Logger.info "Non-local Data:"
     nonlocal = nonlocal_ambients_flat()
     |> Enum.map(fn {ambient_name, pid} ->
-      {ambient_name, Ambient.namespace(pid)}
+      {Ambient.to_string(pid), Ambient.namespace(pid)}
     end)
     Apex.ap nonlocal
 

@@ -31,6 +31,7 @@ def slp_flush():
     with api.settings(warn_only=True):
         slp_daemon_stop()
     slp_daemon_start()
+
 def display(x=1):
     with api.shell_env(DISPLAY_LOOP="ues"):
         ambient_cluster(

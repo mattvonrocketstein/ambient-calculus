@@ -6,7 +6,9 @@ defmodule AmbientData do
     super: nil,
     pid: nil,
     node: :"UnknownNode",
-    namespace: %{}
+    namespace: %{},
+    ambients: %{},
+    programs: [],
     )
 end
 
@@ -18,7 +20,9 @@ defmodule Ambient do
   Consults the registry to return an ambient with the given name or nil
   """
   def to_string(ambient) when is_pid(ambient) do
-    "Ambient[#{inspect Ambient.get_name(ambient)}]"
+    name = Ambient.get_name(ambient)
+    num_progs = Ambient.Algebra.count(ambient)
+    "<Ambient:#{inspect name} progs=[#{inspect num_progs}]>]"
   end
 
   @doc """
@@ -26,11 +30,19 @@ defmodule Ambient do
   The name is given as a name so we can identify
   the ambient by name instead of using a PID.
   """
-  def start_link(name, parent\\nil, sup_pid\\nil)
-  def start_link(string_name, parent, sup_pid) when is_bitstring(string_name) do
-    start_link(String.to_atom(string_name), parent, sup_pid)
+
+  def start_link(_any)
+  def start_link([name | name_list]) do
+    {:ok, pid} = start_link(name)
+    case Enum.empty?(name_list) do
+      true -> {:ok, pid}
+      false -> start_link(name_list)
+    end
   end
-  def start_link(atom_name, parent, sup_pid) when is_atom(atom_name) do
+  def start_link(string_name) when is_bitstring(string_name) do
+    start_link(String.to_atom(string_name))
+  end
+  def start_link(atom_name) when is_atom(atom_name) do
     string_name = Atom.to_string(atom_name)
     {:ok, registrar} = Ambient.Registration.default()
     msg = Functions.red("Ambient[#{string_name}].start_link: ")
@@ -40,31 +52,19 @@ defmodule Ambient do
         System.halt(1)
       true ->
         Logger.info "Starting ambient: #{[string_name]}"
-        sup_pid = cond do
-          sup_pid == nil ->
-            Logger.info msg <> "creating my supervisor "
-            {:ok, sup_pid} = Ambient.Supervisor.start_link(atom_name)
-            sup_pid
-          true ->
-            sup_pid
-        end
-        data = %AmbientData{
-          parent: parent,
+        Logger.info msg <> "creating my supervisor "
+        {:ok, sup_pid} = Ambient.Supervisor.start_link(atom_name)
+        ambient_data = %AmbientData{
+          parent: nil,
           registrar: registrar,
           super: sup_pid,
           name: atom_name,
           namespace: %{}
         }
-        namespace = Map.new
-        |> Map.put(:parent, parent)
-        |> Map.put(:registrar, registrar)
-        |> Map.put(:super, sup_pid)
-        |> Map.put(:name, atom_name)
         {:ok, pid} = Agent.start_link(
-          fn -> namespace end,
+          fn -> ambient_data end,
           name: atom_name)
         Ambient.Registration.register(registrar, atom_name, pid)
-        :global.register_name(atom_name, pid)
         Logger.info msg<>"finished"
         {:ok, pid}
     end
@@ -76,77 +76,106 @@ defmodule Ambient do
   def get(ambient) when Kernel.is_pid(ambient) do
     #case Process.alive?(ambient) do
     #  true ->
-        Agent.get(ambient, fn namespace -> namespace end)
+        Agent.get(ambient, fn ambient_data -> ambient_data end)
     #  false ->
     #    %{}
     #  end
   end
+
+  def get_from_ambient(ambient, var) do
+    Agent.get(ambient, fn ambient_data -> Map.get(ambient_data, var) end)
+  end
+
   def namespace(ambient) do
-    namespace = Ambient.get(ambient)
-    {_val, namespace} = namespace |> Map.pop(:parent)
-    {_val, namespace} = namespace |> Map.pop(:name)
-    namespace
+    get_from_ambient(ambient, :namespace)
   end
 
   @doc """
   Return value of `var` according to `ambient`
   """
-  def get(ambient, var) do
-      Ambient.get(ambient)[Ambient.to_atom(var)]
+  def get_from_namespace(ambient, var) do
+    Agent.get(ambient, fn ambient_data ->
+      Map.get(Map.get(ambient_data, :namespace), var)
+    end)
   end
 
   @doc """
   Writes a new value of `var` for `ambient`
   """
   def put(ambient, var, val) do
-    Agent.update(ambient, fn namespace -> Map.put(namespace, var, val) end)
+    namespace = ambient
+    |> Ambient.namespace()
+    |> Map.put(var, val)
+    Agent.update(ambient, fn ambient_data ->
+      %{ambient_data | namespace: namespace}
+    end)
   end
   def push(ambient, var, val), do: put(ambient, var, val)
 
   def pop(ambient, var) do
-    Agent.get_and_update(ambient,
-      fn namespace ->
-        Map.pop(namespace, var)
+    namespace = Ambient.namespace(ambient)
+    {_val, namespace} = namespace |>  Map.pop(var)
+    Agent.update(ambient,
+      fn ambient_data ->
+        %{ambient_data | namespace: namespace}
       end)
   end
 
-  @doc """
-  Write new value of `var` for `ambient`
-  """
-  def parent(ambient), do: Ambient.get_parent(ambient)
-  def get_parent(ambient) do
-     Map.get(Ambient.get(ambient), :parent)
-  end
+  def parent(ambient), do: get_parent(ambient)
+  def get_parent(ambient), do: get_from_ambient(ambient, :parent)
 
-  def name(ambient), do: Ambient.get_name(ambient)
-  def get_name(ambient), do: Ambient.get(ambient, :name)
+  def name(ambient), do: get_from_ambient(ambient, :name)
+  def get_name(ambient), do: Ambient.name(ambient)
 
-  def get_registrar(ambient), do: get(ambient, :registrar)
+  def get_supervisor(ambient), do: Ambient.get_from_ambient(ambient, :super)
+  def get_registrar(ambient), do: get_from_ambient(ambient, :registrar)
+  def get_ambients(ambient), do: get_from_ambient(ambient, :ambients)
 
   @doc """
   Returns an answer for whether this ambient is
    at the top-level hierarchy
   """
-  def is_top(ambient), do: nil == Ambient.get_parent(ambient)
-
-  @doc """
-  """
-  def get_supervisor(ambient), do: Ambient.get(ambient, :super)
-
-  @doc """
-  """
-  def to_atom(var) do
-    (is_atom(var) && var) || String.to_atom(var)
+  #def top(ambient), do: nil == Ambient.get_parent(ambient)
+  def lookup(name) when is_atom(name) do
+    :global.whereis_name(name)
   end
 
   @doc """
+  Remove sub-ambient `ambient2` from parent `ambient1`
   """
-  def update(ambient, new_namespace) do
-     Agent.update(ambient, fn namespace ->
-       Map.merge(namespace, new_namespace, fn _k, _v1, v2 ->
-         v2
-       end)
-     end)
-
+  def remove_ambient(nil, ambient2) do
+    Ambient.Registration.deregister(
+      Ambient.get_registrar(ambient2),
+      ambient2)
   end
+  def remove_ambient(ambient1, ambient2) do
+    ambient1 = (is_pid(ambient1) && ambient1) || lookup(ambient1)
+    ambient2 = (is_pid(ambient2) && ambient2) || lookup(ambient2)
+    Agent.update(ambient1, fn ambient_data ->
+      %{ambient_data | ambients: Enum.into(
+        Enum.filter(
+          Ambient.get_ambients(ambient1),
+          fn {name, pid} -> pid != ambient2 end),
+        Map.new) }
+    end)
+  end
+  def add_ambient(ambient, new_parent) do
+    Agent.update(new_parent, fn ambient_data ->
+      ambients = Map.get(ambient_data, :ambients)
+      |> Map.put(Ambient.name(ambient), ambient)
+      %{ambient_data | ambients: ambients}
+    end)
+  end
+  def reset_parent(ambient, new_parent) do
+    ambient = (is_pid(ambient) && ambient) || lookup(ambient)
+    new_parent = (is_pid(new_parent) && new_parent) || lookup(new_parent)
+    ambient_name = Ambient.name(ambient)
+    current_parent = Ambient.get_parent(ambient)
+    Ambient.remove_ambient(current_parent, ambient)
+    Ambient.add_ambient(new_parent, ambient)
+    Agent.update(
+      ambient,
+      fn ambient_data -> %{ambient_data|parent: new_parent} end)
+  end
+
 end

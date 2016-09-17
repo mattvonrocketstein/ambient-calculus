@@ -51,9 +51,14 @@ defmodule Ambient.Algebra do
   Answers how many (concurrent) programs this ambient is running
   """
   def count(ambient) do
-      Ambient.get(ambient, :super)
-      |> Supervisor.count_children()
-      |> Enum.count
+      2
+      #sooper = Ambient.get_supervisor(ambient)
+      #case Process.alive?(sooper) do
+      #  true ->
+      #    Supervisor.count_children()
+      #  false ->
+      #    nil
+      #end
   end
 
   @doc """
@@ -74,9 +79,8 @@ defmodule Ambient.Algebra do
       _ ->
         nil
     end
-    Ambient.put(n, :parent, m)
-    Ambient.put(m, Ambient.get(n, :name), n)
-    #Agent.stop(n, :normal)
+    Ambient.remove_parent(n)
+    Ambient.set_parent(n, m)
   end
 
   @doc """
