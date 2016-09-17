@@ -172,11 +172,11 @@ defmodule Ambient do
   def healthy?(ambient) do
     Enum.empty?(health_issues(ambient))
   end
-  def lookup(pid) when is_pid(pid) do
-    pid
-  end
   def local?(ambient) do
     Node.self()==get_from_ambient(ambient, :node)
+  end
+  def lookup(pid) when is_pid(pid) do
+    pid
   end
   def lookup(name) when is_atom(name) do
     lookup(:global.whereis_name(name))
@@ -197,7 +197,7 @@ defmodule Ambient do
       %{ambient_data | ambients: Enum.into(
         Enum.filter(
           Ambient.get_ambients(ambient1),
-          fn {name, pid} -> pid != ambient2 end),
+          fn {_name, pid} -> pid != ambient2 end),
         Map.new) }
     end)
   end

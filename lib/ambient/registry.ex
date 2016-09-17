@@ -1,5 +1,5 @@
 require Logger
-import Apex.AwesomeDef
+#import Apex.AwesomeDef
 
 defmodule Entry do
   defstruct name: "UnknownAmbient", pid: nil, node: "UnknownNode"
@@ -117,7 +117,7 @@ defmodule Ambient.Registration do
     Agent.get_and_update(
       registrar,
       fn registry ->
-        {_val, updated_registry} = Map.pop(registry, name)
+        {_val, _updated_registry} = Map.pop(registry, name)
       end)
   end
   @doc """

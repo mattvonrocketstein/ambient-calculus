@@ -2,27 +2,10 @@ require Logger
 
 defmodule Discovery do
 
-  def act_on_failures(failure_report) do
-      strike_3 = Enum.filter(
-        failure_report,
-        fn {service_string, failure_count} ->
-          3 > failure_count
-        end
-      )
-      Enum.map(strike_3,
-        fn {service_string, count} ->
-          IO.puts("deregistering multiple offender: #{inspect service_string}")
-          ExSlp.Service.deregister
-        end
-      )
-      failure_report = Enum.filter_map(failure_report,
-      fn {k,v}-> v <= 3 end,
-      fn {k,v}-> {k,v} end)|>Enum.into(%{})
-  end
   def discover() do
     slp_services = ExSlp.Service.discover()
     {:ok, this_hostname} = :inet.gethostname()
-    result = Enum.filter(
+    Enum.filter(
       slp_services,
       fn service_string ->
 
@@ -56,15 +39,14 @@ defmodule Discovery do
           end # case
         end # unless
       end)
-      msg = Functions.red("SLP Discovery: ")
+      #Functions.red("SLP Discovery: ")
   end
   def register() do
-    {hostname, port} ={"127.0.0.1", "65535"}
-    {:ok, result} = ExSlp.Service.register()#{}"service:exslp://#{hostname},#{port}")
+    #{hostname, port} ={"127.0.0.1", "65535"}
+    {:ok, _result} = ExSlp.Service.register()#{}"service:exslp://#{hostname},#{port}")
     if Display.enabled? do
       Logger.info Functions.red("Ran registration task:")<>" ok"
     end
     :timer.sleep(5000)
-    register()
   end
 end
