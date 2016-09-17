@@ -1,5 +1,54 @@
 require Logger
-
+defmodule Display do
+  def display_flag() do
+    System.get_env("DISPLAY_LOOP") || false
+  end
+def display_cluster_members() do
+    Logger.info "ClusterMembers: " <> Enum.join(Universe.cluster_members,", ")
+  end
+  def display_serial_number() do
+    IO.puts "[vsn=#{inspect Functions.version(Ambient)}]"
+  end
+  def display_neighborhood() do
+    header = ""#step #{Functions.red inspect x} for "
+    node_name = Atom.to_string(Node.self())
+    header= header <> "Neighborhood[#{Functions.red node_name}]"
+    Logger.info header
+  end
+  def display_nonlocal() do
+    Logger.info "Non-local Data:"
+    nonlocal = Universe.nonlocal_ambients_flat()
+    |> Enum.map(fn {ambient_name, pid} ->
+      #data = Map.new()
+      #|> Map.put(:namespace, Ambient.namespace(pid))
+      #|> Map.put(:children, Ambient.get_from_ambient(pid, :ambients))
+      {ambient_name, Ambient.Formatter.format(pid)}
+    end)
+    |> Enum.into(Map.new)
+    Apex.ap nonlocal
+  end
+  def display_local_data() do
+    Logger.info "Local Data:"
+    {:ok, registrar} = Ambient.Registration.default()
+    result = Ambient.Registration.get(registrar)
+    |> Enum.map(fn {aname, registration}->
+      pid = Map.get(registration,:pid)
+      {aname,  Ambient.Formatter.format(pid)}
+    end)
+    |> Enum.into(%{})
+    Apex.ap result
+  end
+  def display(x\\0) do
+    :timer.sleep(1000)
+    Logger.info "System Summary"
+    display_serial_number()
+    display_neighborhood()
+    display_cluster_members()
+    display_local_data()
+    display_nonlocal()
+    #Apex.ap Universe.root_ambients()
+  end
+end
 defmodule Universe do
   defmodule Registration do
     def sync_globals() do
@@ -46,7 +95,7 @@ defmodule Universe do
    The hosting node is ignored.
   """
   def all_registrars() do
-    cluster_members()
+    Universe.cluster_members()
     |> Enum.map(
       fn node_atom ->
         case Ambient.Registration.get_for_node(node_atom) do
@@ -108,57 +157,6 @@ defmodule Universe do
 
   @doc """
   """
-  def display_cluster_members() do
-    Logger.info "ClusterMembers: " <> Enum.join(cluster_members,", ")
-  end
-  def display_serial_number() do
-    IO.puts "[vsn=#{inspect Functions.version(Ambient)}]"
-  end
-  def display_neighborhood() do
-    header = ""#step #{Functions.red inspect x} for "
-    node_name = Atom.to_string(Node.self())
-    header= header <> "Neighborhood[#{Functions.red node_name}]"
-    Logger.info header
-  end
-  def display_nonlocal() do
-    Logger.info "Non-local Data:"
-    nonlocal = nonlocal_ambients_flat()
-    |> Enum.map(fn {ambient_name, pid} ->
-      #data = Map.new()
-      #|> Map.put(:namespace, Ambient.namespace(pid))
-      #|> Map.put(:children, Ambient.get_from_ambient(pid, :ambients))
-      {ambient_name, format_for_display(pid)}
-    end)
-    |> Enum.into(Map.new)
-    Apex.ap nonlocal
-  end
-  def format_for_display(ambient) do
-    %{
-      children: Ambient.children(ambient),
-      namespace: Ambient.namespace(ambient)
-    }
-  end
-  def display_local_data() do
-    Logger.info "Local Data:"
-    {:ok, registrar} = Ambient.Registration.default()
-    result = Ambient.Registration.get(registrar)
-    |> Enum.map(fn {aname, registration}->
-      pid = Map.get(registration,:pid)
-      {aname,  format_for_display(pid)}
-    end)
-    |> Enum.into(%{})
-    Apex.ap result
-  end
-  def display(x\\0) do
-    :timer.sleep(1000)
-    Logger.info "System Summary"
-    display_serial_number()
-    display_neighborhood()
-    display_cluster_members()
-    display_local_data()
-    display_nonlocal()
-    #Apex.ap Universe.root_ambients()
-  end
 end
 
 defmodule Universe.Supervisor do
@@ -171,13 +169,13 @@ defmodule Universe.Supervisor do
       worker(
         Task, [&Discovery.register/0],
         id: :SLPNodeRegister,
-        restart: :transient),
+        restart: :permanent),
 
       # a periodic task for discovering other registered elixir nodes
       worker(
         Task, [ &Discovery.discover/0 ],
         id: SLPNodeDiscover,
-        restart: :transient,
+        restart: :permanent,
         ),
         # periodic worker worker who starts the registration agent
         worker(
@@ -210,14 +208,14 @@ defmodule Universe.Supervisor do
   the display worker
   """
   def display_children() do
-    display_flag = System.get_env("DISPLAY_LOOP") || false
+    display_flag = Display.display_flag()
     Logger.info "  display: #{inspect display_flag}"
     children = if(
       display_flag, do:
           [worker(Task, [fn ->
             Enum.map(
               0..10, fn x ->
-                  Universe.display()
+                  Display.display()
                   :timer.sleep(1000)
                 end)
           end],

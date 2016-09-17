@@ -59,9 +59,10 @@ defmodule Ambient do
           registrar: registrar,
           super: sup_pid,
           name: atom_name,
+          node: Node.self(),
           namespace: %{}
         }
-        {:ok, pid} = Agent.start_link(
+        {:ok, pid} = Agent.start(
           fn -> ambient_data end,
           name: atom_name)
         Ambient.Registration.register(registrar, atom_name, pid)
@@ -126,20 +127,59 @@ defmodule Ambient do
 
   def name(ambient), do: get_from_ambient(ambient, :name)
   def get_name(ambient), do: Ambient.name(ambient)
-
   def get_supervisor(ambient), do: Ambient.get_from_ambient(ambient, :super)
-  def get_registrar(ambient), do: get_from_ambient(ambient, :registrar)
 
+  def get_registrar(ambient), do: get_from_ambient(ambient, :registrar)
+  def get_node(ambient), do: get_from_ambient(ambient, :node)
+  def node(ambient), do: get_node(ambient)
   def get_ambients(ambient), do: get_from_ambient(ambient, :ambients)
   def children(ambient), do: get_ambients(ambient)
 
   @doc """
   Returns an answer for whether this ambient is
-   at the top-level hierarchy
+  healthy.  This can be hard to determine, depending
+  on whether the ambient is remote or not
   """
-  #def top(ambient), do: nil == Ambient.get_parent(ambient)
+  def health_issues(ambient) do
+    ambient = lookup(ambient)
+    issues = []
+    case Ambient.local?(ambient) do
+      true ->
+        if not Process.alive?(ambient) do
+          issues = issues ++ ["local process is not alive"]
+        end
+      false ->
+        node = Ambient.node(ambient)
+        respond_to = self()
+        Node.spawn_link(node, fn ->
+          send respond_to, Process.alive?(ambient)
+        end)
+        receive do
+          aliveness ->
+            case aliveness do
+              true ->
+                :noop
+              false ->
+                issues = issues ++ ["remote node reports process is not alive"]
+            end
+        after 2_000 ->
+          issues = issues ++ ["timeout asking remote node if process is alive"]
+        end
+    end
+    issues
+  end
+
+  def healthy?(ambient) do
+    Enum.empty?(health_issues(ambient))
+  end
+  def lookup(pid) when is_pid(pid) do
+    pid
+  end
+  def local?(ambient) do
+    Node.self()==get_from_ambient(ambient, :node)
+  end
   def lookup(name) when is_atom(name) do
-    :global.whereis_name(name)
+    lookup(:global.whereis_name(name))
   end
 
   @doc """
@@ -174,8 +214,8 @@ defmodule Ambient do
     ambient_name = Ambient.name(ambient)
     current_parent = Ambient.get_parent(ambient)
     Ambient.remove_ambient(current_parent, ambient)
-    Ambient.add_ambient(new_parent, ambient)
-    Ambient.set_parent(ambient, new_parent)
+    add_ambient(new_parent, ambient)
+    set_parent(ambient, new_parent)
   end
   defp set_parent(ambient,new_parent) do
     Agent.update(

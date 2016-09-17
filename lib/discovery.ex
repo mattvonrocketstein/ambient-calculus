@@ -25,6 +25,7 @@ defmodule Discovery do
     result = Enum.filter(
       slp_services,
       fn service_string ->
+
         # HACK:
         # by default service-strings are constructed with the human-friendly
         # system hostnames.  this project's `sys.config` config file requires
@@ -33,6 +34,7 @@ defmodule Discovery do
           to_string(service_string),
           to_string(this_hostname),
           "127.0.0.1")
+
         should_skip = normalized_string==Atom.to_string(Node.self())
         unless(should_skip) do
           case ExSlp.Service.connect(normalized_string) do
@@ -40,25 +42,28 @@ defmodule Discovery do
             :ignored ->
               # Node.connect() ignored a down host
               #Logger.info("Connection to #{inspect normalized_string} ignored")
-              nil
+              :noop
             false ->
               # Connection failed
               #Logger.info("Connection to #{inspect normalized_string} failed")
-              nil
+              :noop
             true ->
               # Connection is successful (but not necessarily new)
-              normalized_string
+              if Display.display_flag do
+                Logger.info("connected: #{inspect normalized_string}")                
+              end
           end # case
         end # unless
-        discover()
       end)
       msg = Functions.red("SLP Discovery: ")
-      #Logger.info msg <> "#{inspect result}"
   end
   def register() do
-    hostname ="127.0.0.1"
-    port = "65535"
+    {hostname, port} ={"127.0.0.1","65535"}
     {:ok, result} = ExSlp.Service.register()#{}"service:exslp://#{hostname},#{port}")
-    Logger.info Functions.red("Ran registration task:")<>" ok"
+    if Display.display_flag do
+      Logger.info Functions.red("Ran registration task:")<>" ok"
+    end
+    :timer.sleep(5000)
+    register()
   end
 end
