@@ -1,19 +1,37 @@
 require Logger
 
 defmodule Universe do
+  defmodule Registration do
+    def sync_globals() do
+      :timer.sleep(1000)
+      {:ok, registrar} = Ambient.Registration.default()
+      registrations = Ambient.Registration.get(
+        registrar)
+      Enum.map(registrations, fn {k,v} ->
+        :global.register_name(k, Map.get(v, :pid))
 
+      end)
+    end
+  end
+
+  @doc """
+  Every node gets the "default ambient", which is registered
+  locally automatically, and which has the same name as
+  the node itself
+  """
   def start_local_ambient() do
     name = Node.self()
     {:ok, ambient} = Ambient.start_link(name)
-    #Ambient.Registration.get_ambient(name)
-    #|> Ambient.put(
-    #  :registry,
-    #  registrar)
   end
 
   def mainloop() do
+    :timer.sleep(1)
     msg = Functions.red "Universe.main: "
-    Logger.info msg<> "entry"
+    Logger.info msg <> "entry"
+    {:ok, ambientA} = Ambient.start_link(:A)
+    {:ok, ambientB} = Ambient.start_link(:B)
+    Ambient.Algebra.enter(
+      ambientB, ambientA)
   end
 
   @doc """
@@ -22,25 +40,71 @@ defmodule Universe do
     Ambient.Registration.start_link(Node.self())
     Universe.start_local_ambient()
   end
-  def root_registrations() do
+
+  @doc """
+   Returns a hash of %{node_name => registrar_pid}
+   The hosting node is ignored.
+  """
+  def all_registrars() do
     cluster_members()
-    |> Enum.map(fn node_atom ->
-      Ambient.Registration.get_for_node(node_atom)
-    end)
+    |> Enum.map(
+      fn node_atom ->
+        case Ambient.Registration.get_for_node(node_atom) do
+          {:ok, pid} ->
+            {node_atom, pid}
+          {:error, _} ->
+            nil
+        end
+      end)
+    |> Enum.filter(fn x -> x != nil end)
   end
 
-  def sync_registry() do
-    root_registrations()
-    |> Enum.map(fn pid ->
-      Logger.info ("Found pid #{inspect pid} for root-reg")
-      pid
-      |> Ambient.Registration.get()
-    end)
+  @doc """
+   Returns a hash of %{ambient_name => pid}
+   The hosting node is ignored.
+  """
+  def nonlocal_ambients_flat() do
+    Map.values(nonlocal_ambients())
+    |> Enum.reduce(%{}, fn(x, acc) -> Map.merge(acc,x) end)
   end
+  @doc """
+  Returns a map of %{nodename => %{ambient_name => pid}}
+  """
+  def nonlocal_ambients() do
+    all_registrars()
+    |> Enum.map(fn {node_atom, pid} ->
+      node_data = Ambient.Registration.get(pid)
+      name_to_pid_map = Enum.map(
+        node_data,
+        fn {ambient_name, ambient_data} ->
+          {ambient_name, Map.get(ambient_data, :pid)}
+        end
+        )
+      |> Enum.into(%{})
+      {node_atom, name_to_pid_map}
+    end)
+    |> Enum.into(Map.new)
+  end
+
+  def sync_ambients() do
+    Enum.map(
+      nonlocal_ambients(),
+      fn {ambient_name, ambient_pid} ->
+        {ambient_name,
+        :global.re_register_name(
+          ambient_name, ambient_pid)}
+      end)
+  end
+
+  @doc """
+  Returns a list of atoms that represent other
+  elixir VMs accessible to this runtime
+  """
   def cluster_members() do
     # returns a list of atoms
     Node.list()
   end
+
   @doc """
   """
   def display(x\\0) do
@@ -49,10 +113,10 @@ defmodule Universe do
     header = ""#step #{Functions.red inspect x} for "
     node_name = Atom.to_string(Node.self())
     header= header <> "Neighborhood[#{Functions.red node_name}]"
-    IO.puts header
+    Logger.info header
     #IO.puts "this-node: #{Atom.to_string(Node.self())}"
-    IO.puts "ClusterMembers: " <> Enum.join(cluster_members,", ")
-    IO.puts "AmbientRegistry:\n"
+    Logger.info "ClusterMembers: " <> Enum.join(cluster_members,", ")
+    Logger.info "Local Data:"
     {:ok, registrar} = Ambient.Registration.default()
     result = Ambient.Registration.get(registrar)
     |> Enum.map(fn {aname, rdata}->
@@ -66,9 +130,18 @@ defmodule Universe do
     end)
     |>Enum.into(%{})
     Apex.ap result
+    display_nonlocal()
     #Apex.ap Universe.root_ambients()
   end
+  def display_nonlocal() do
+    Logger.info "Non-local Data:"
+    nonlocal = nonlocal_ambients_flat()
+    |> Enum.map(fn {ambient_name, pid} ->
+      {ambient_name, Ambient.namespace(pid)}
+    end)
+    Apex.ap nonlocal
 
+  end
 end
 
 defmodule Universe.Supervisor do
@@ -105,19 +178,13 @@ defmodule Universe.Supervisor do
   def get_children() do
     children =
       registration_children() ++
-      display_children
-
-      #worker(
-      #  Task, [&build_default_ambient/0 ],
-      #  id: :buildInitialAmbient,
-      #  restart: :transient),
-      #supervisor(Ambient.Engine, []),
+      display_children ++ [
 
       # Just an post-bootstrap entry point to experiment with the system
       #worker(
       #  Task, [&Universe.mainloop/0],
-      #  id: :main,
-      #  restart: :transient),
+      #  id: :main, restart: :transient),
+    ]
   end
 
   @doc """

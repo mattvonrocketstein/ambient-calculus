@@ -1,16 +1,9 @@
 require Logger
 import Apex.AwesomeDef
-defmodule Universe.Registration do
-  def sync_globals() do
-    {:ok, registrar} = Ambient.Registration.default()
-    registrations = Ambient.Registration.get(
-      registrar)
-    Enum.map(registrations, fn {k,v} ->
-      :global.register_name(k, Map.get(v, :pid))
-    end)
-  end
-
+defmodule Entry do
+  defstruct name: "UnknownAmbient", pid: nil, node: "UnknownNode"
 end
+
 defmodule Ambient.Registration do
   def default() do
     get_for_node(Node.self())
@@ -23,17 +16,18 @@ defmodule Ambient.Registration do
   end
 
   def get_for_node(node_name) do
-      tmp=node_to_name(node_name)
+      tmp = node_to_name(node_name)
       pid = :global.whereis_name(tmp)
       case pid do
         :undefined ->
-          msg = "no such name: #{tmp}"
-          IO.puts(msg)
+          msg = "cannot find registrar: #{tmp}"
+          Logger.warn msg
           {:error, msg}
         _ ->
           {:ok, pid}
       end
   end
+
   def start_link(node_atom) do
     name_atom = node_to_name(node_atom)
     registry = %{}
@@ -42,20 +36,30 @@ defmodule Ambient.Registration do
     {:ok, pid} = result = Agent.start_link(
         fn -> registry  end,
         name: name_atom)
-    Logger.info msg <> "started"
+    Logger.info msg <> " started"
     :global.register_name(name_atom, pid)
     result
   end
 
   @doc """
   """
-
   def get_ambient(registrar, name) when is_atom(name) do
     Map.get(get(registrar, name), :pid)
   end
   def get_ambient(registrar, name) when is_bitstring(name) do
     name = String.to_atom(name)
     :global.whereis_name(name)#get_ambient(name) ||
+  end
+
+  @doc """
+  """
+  def map_top(registrar) do
+    data = get(registrar) || %{}
+    Enum.map(
+          data,
+          fn {atom_name, registration} ->
+            {atom_name, Map.get(registration, :pid)}
+          end)
   end
 
   @doc """
@@ -73,9 +77,28 @@ defmodule Ambient.Registration do
   @doc """
   """
   def register(registrar, name, ambient) when Kernel.is_pid(ambient) do
+    %Entry{name: name, pid: ambient}
     {:ok, put(registrar, name, :pid, ambient)}
   end
 
+  @doc """
+  """
+  def deregister(registrar, ambient_name) when is_bitstring(ambient_name) do
+    ambient_name = String.to_atom(ambient_name)
+    deregister(registrar, ambient_name)
+  end
+  def deregister(registrar, ambient_pid) when is_pid(ambient_pid) do
+    ambient_name = Ambient.get(ambient_pid, :name)
+    deregister(registrar, ambient_name)
+  end
+  def deregister(registrar, name) when is_atom(name) do
+    registrar = registrar||Ambient.Registration.default()
+    Agent.update(
+      registrar,
+      fn registry ->
+        Map.pop(registry, name)
+      end)
+  end
   @doc """
   """
   def put(registrar, name, key, val) do

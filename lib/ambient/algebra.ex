@@ -65,8 +65,18 @@ defmodule Ambient.Algebra do
     exists. If more than one m sibling exists, any one of them can be chosen.
   """
   def enter(n, m, _prog \\ Functions.noop) do
+    old_parent = Ambient.get_parent(n)
+    registrar = Ambient.get_registrar(n)
+    case old_parent do
+      nil ->
+        Ambient.Registration.deregister(
+          registrar, Ambient.get_name(n))
+      _ ->
+        nil
+    end
     Ambient.put(n, :parent, m)
     Ambient.put(m, Ambient.get(n, :name), n)
+    #Agent.stop(n, :normal)
   end
 
   @doc """

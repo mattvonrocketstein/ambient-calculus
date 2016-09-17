@@ -1,4 +1,14 @@
 require Logger
+defmodule AmbientData do
+  defstruct(name: :"UnknownAmbient",
+    parent: nil,
+    registrar: nil,
+    super: nil,
+    pid: nil,
+    node: :"UnknownNode",
+    namespace: %{}
+    )
+end
 
 defmodule Ambient do
   @moduledoc """
@@ -7,9 +17,6 @@ defmodule Ambient do
   @doc """
   Consults the registry to return an ambient with the given name or nil
   """
-  def find(ambient_name) when is_bitstring(ambient_name) do
-    Map.get(Ambient.Registration.get(), ambient_name)
-  end
   def to_string(ambient) when is_pid(ambient) do
     "Ambient[#{inspect Ambient.get_name(ambient)}]"
   end
@@ -29,7 +36,7 @@ defmodule Ambient do
     msg = Functions.red("Ambient[#{string_name}].start_link: ")
     case registrar != nil && Process.alive?(registrar) do
       false ->
-        Logger.warn ("Registration must be started before ambients can be created.  pid #{registrar}")
+        Logger.error ("Registration must be started before ambients can be created.  pid #{registrar}")
         System.halt(1)
       true ->
         Logger.info "Starting ambient: #{[string_name]}"
@@ -41,8 +48,16 @@ defmodule Ambient do
           true ->
             sup_pid
         end
+        data = %AmbientData{
+          parent: parent,
+          registrar: registrar,
+          super: sup_pid,
+          name: atom_name,
+          namespace: %{}
+        }
         namespace = Map.new
         |> Map.put(:parent, parent)
+        |> Map.put(:registrar, registrar)
         |> Map.put(:super, sup_pid)
         |> Map.put(:name, atom_name)
         {:ok, pid} = Agent.start_link(
@@ -59,7 +74,12 @@ defmodule Ambient do
   Gets all the data currently in `ambient`.
   """
   def get(ambient) when Kernel.is_pid(ambient) do
-    Agent.get(ambient, fn namespace -> namespace end)
+    #case Process.alive?(ambient) do
+    #  true ->
+        Agent.get(ambient, fn namespace -> namespace end)
+    #  false ->
+    #    %{}
+    #  end
   end
   def namespace(ambient) do
     namespace = Ambient.get(ambient)
@@ -72,7 +92,7 @@ defmodule Ambient do
   Return value of `var` according to `ambient`
   """
   def get(ambient, var) do
-    Ambient.get(ambient)[Ambient.to_atom(var)]
+      Ambient.get(ambient)[Ambient.to_atom(var)]
   end
 
   @doc """
@@ -100,6 +120,8 @@ defmodule Ambient do
 
   def name(ambient), do: Ambient.get_name(ambient)
   def get_name(ambient), do: Ambient.get(ambient, :name)
+
+  def get_registrar(ambient), do: get(ambient, :registrar)
 
   @doc """
   Returns an answer for whether this ambient is

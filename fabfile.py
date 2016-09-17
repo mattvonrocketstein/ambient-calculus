@@ -28,7 +28,19 @@ def slp_list():
     api.local("slptool findsrvs exslp")
 
 def slp_flush():
-    api.local("")
+    with api.settings(warn_only=True):
+        slp_daemon_stop()
+    slp_daemon_start()
+def display(x=1):
+    with api.shell_env(DISPLAY_LOOP="ues"):
+        ambient_cluster(
+            name='display',
+            )
+
+def script(x):
+    ambient_cluster(
+        name=name,
+        mix_cmd='mix run', erl_config=erl_config)
 
 def shell(name='AmbientShell', erl_config='shell.config'):
     ambient_cluster(
