@@ -9,12 +9,6 @@ config :logger,
   metadata: [:pid],
   backends: [:console], # default, support for additional log sinks
   compile_time_purge_level: :info # purges logs with lower level than this
-config :mix_test_watch,
-  clear: true,
-  tasks: [
-    "test",
-    # "dogma",
-  ]
 
 #config :iex, default_prompt: "A:C>>>"
 

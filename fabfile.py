@@ -47,7 +47,7 @@ def script(_script):
 
 def shell(name='AmbientShell'):
     with api.shell_env(
-        MIX_ENV='display',):
+        MIX_ENV='shell',):
         ambient_cluster(
             name=name,
             mix_cmd='mix run')

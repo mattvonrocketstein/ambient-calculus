@@ -1,4 +1,5 @@
 use Mix.Config
 
-config :controls,
+IO.puts "USING SHELL CONFIG"
+config :ambientcalculus,
   display_loop: false

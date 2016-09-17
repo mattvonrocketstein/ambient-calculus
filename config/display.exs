@@ -1,4 +1,4 @@
 use Mix.Config
 
-config :controls,
+config :ambientcalculus,
   display_loop: true

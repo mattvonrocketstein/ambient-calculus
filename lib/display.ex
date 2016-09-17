@@ -1,32 +1,11 @@
 require Logger
-defmodule Controls do
-    use Application
-
-    defmodule Soopervisor do
-      @moduledoc """
-      """
-      use Supervisor
-
-     def start_link(), do: Supervisor.start_link(__MODULE__, :ok)
-
-     def init(:ok) do
-       #Logger.info Functions.red("Supervisor.init called")
-       children = [
-       ]
-       supervise(children, strategy: :one_for_one)
-     end
-    end
-
-    def start(_type, _args) do
-      Display.App.Soopervisor.start_link()
-    end
-end
 defmodule Display do
   def enabled?() do
     Application.get_env(
-      :display_controls,
+      :ambientcalculus,
       :display_loop,
       false)
+
   end
   def display_cluster_members() do
     Logger.info "ClusterMembers: " <> Enum.join(Ambient.Topology.cluster_members,", ")

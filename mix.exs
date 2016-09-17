@@ -2,7 +2,7 @@ defmodule AmbientCalculus.Mixfile do
   use Mix.Project
 
   def project do
-    [app: :ambient,
+    [app: :ambientcalculus,
      version: "0.1.0",
      elixir: "~> 1.3",
      default_task: "app.start",
@@ -11,22 +11,18 @@ defmodule AmbientCalculus.Mixfile do
      test_coverage: [
        tool: Coverex.Task,
        console_log: true],
-      deps: deps()]
+      deps: deps(Mix.env)]
   end
 
   # Configuration for the OTP application
   #
   # Type "mix help compile.app" for more information
-  def application do
-    [applications: [
+  def application() do
+    [
+      mod: {Ambient.App, [Node.self]},
+      applications: [
       :logger,
-      :controls
       ],
-
-     mod: {
-       Ambient.App, [Node.self]
-       #KV.App, []
-       }
     ]
   end
 
@@ -39,8 +35,9 @@ defmodule AmbientCalculus.Mixfile do
   #   {:mydep, git: "https://github.com/elixir-lang/mydep.git", tag: "0.1.0"}
   #
   # Type "mix help deps" for more examples and options
-  defp deps do
-    [
+  defp deps(), do: deps(Mix.env)
+  defp deps(env) do
+    base = [
       { :ex_slp,
         git: "https://github.com/icanhazbroccoli/ex_slp_tk.git",
         tag: "76a2f" },
@@ -64,5 +61,8 @@ defmodule AmbientCalculus.Mixfile do
       # https://github.com/alfert/coverex
       {:coverex, "~> 1.4.9", only: :test},
     ]
+    case env do
+      _ -> base
+    end
   end
 end
