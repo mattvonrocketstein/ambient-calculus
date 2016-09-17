@@ -172,6 +172,7 @@ defmodule Ambient do
   def healthy?(ambient) do
     Enum.empty?(health_issues(ambient))
   end
+  def remote?(ambient), do: not local?(ambient)
   def local?(ambient) do
     Node.self()==get_from_ambient(ambient, :node)
   end
