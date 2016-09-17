@@ -41,7 +41,7 @@ defmodule Universe.Supervisor do
   """
   def display_children do
     display_flag = Display.enabled?()
-    Logger.info "  display: #{inspect display_flag}"
+    #Logger.info "  display: #{inspect display_flag}"
     children = if(
       display_flag, do:
           [worker(Task, [fn ->

@@ -14,7 +14,8 @@ defmodule Ambient.Registration do
     Ambient.Topology.cluster_members()
     |> Enum.map(
       fn node_atom ->
-        case Ambient.Registration.get_for_node(node_atom) do
+        tmp = Ambient.Registration.get_for_node(node_atom)
+        case tmp do
           {:ok, pid} ->
             {node_atom, pid}
           {:error, _} ->
@@ -29,7 +30,7 @@ defmodule Ambient.Registration do
   @doc """
   """
   def node_to_name(node_atom) do
-      atom_name = String.to_atom(
+      _atom_name = String.to_atom(
         Atom.to_string(node_atom)<>"-Registry")
   end
 
@@ -64,9 +65,9 @@ defmodule Ambient.Registration do
   def get_ambient(registrar, name) when is_atom(name) do
     Map.get(get(registrar, name), :pid)
   end
-  def get_ambient(registrar, name) when is_bitstring(name) do
+  def get_ambient(_registrar, name) when is_bitstring(name) do
     name = String.to_atom(name)
-    :global.whereis_name(name)#get_ambient(name) ||
+    :global.whereis_name(name)
   end
 
   @doc """

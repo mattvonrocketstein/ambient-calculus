@@ -154,16 +154,17 @@ defmodule Ambient do
         Node.spawn_link(node, fn ->
           send respond_to, Process.alive?(ambient)
         end)
-        receive do
+
+        issues = issues ++ receive do
           aliveness ->
             case aliveness do
               true ->
-                :noop
+                []
               false ->
-                issues = issues ++ ["remote node reports process is not alive"]
+                ["remote node reports process is not alive"]
             end
         after 2_000 ->
-          issues = issues ++ ["timeout asking remote node if process is alive"]
+          ["timeout asking remote node if process is alive"]
         end
     end
     issues
@@ -213,6 +214,7 @@ defmodule Ambient do
     ambient = (is_pid(ambient) && ambient) || lookup(ambient)
     new_parent = (is_pid(new_parent) && new_parent) || lookup(new_parent)
     ambient_name = Ambient.name(ambient)
+    Logger.info "setting new parent for #{inspect ambient_name}"
     current_parent = Ambient.get_parent(ambient)
     Ambient.remove_ambient(current_parent, ambient)
     add_ambient(new_parent, ambient)

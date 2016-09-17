@@ -21,16 +21,15 @@ defmodule Display do
     Logger.info header
   end
   def display_nonlocal() do
-    Logger.info "Non-local Data:"
     nonlocal = Ambient.Topology.nonlocal_ambients_flat()
     |> Enum.map(fn {ambient_name, pid} ->
-      #data = Map.new()
-      #|> Map.put(:namespace, Ambient.namespace(pid))
-      #|> Map.put(:children, Ambient.get_from_ambient(pid, :ambients))
       {ambient_name, Ambient.Formatter.format(pid)}
     end)
-    |> Enum.into(Map.new)
-    Apex.ap nonlocal
+    unless Enum.empty?(nonlocal) do
+      Logger.info "Non-local Data:"
+      nonlocal=Enum.into(nonlocal, Map.new)
+      Apex.ap nonlocal
+    end
   end
   def display_local_data() do
     Logger.info "Local Data:"
