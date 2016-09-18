@@ -74,7 +74,6 @@ defmodule Ambient.Test do
   test "default parent is toplevel",%{ambient1: ambient1} do
     assert Ambient.parent(ambient1) == nil
   end
-
   test "exit capability", %{ambient1: ambient1, ambient2: ambient2} do
     #ambient2 |> Ambient.Algebra.enter(ambient1)
     #assert Ambient.parent(ambient2) == ambient1

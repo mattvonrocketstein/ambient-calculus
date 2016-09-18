@@ -110,7 +110,7 @@ defmodule Ambient.Registration do
     deregister(registrar, ambient_name)
   end
   def deregister(registrar, ambient_pid) when is_pid(ambient_pid) do
-    ambient_name = Ambient.get_name(ambient_pid)
+    ambient_name = Ambient.name(ambient_pid)
     deregister(registrar, ambient_name)
   end
   def deregister(registrar, name) when is_atom(name) do

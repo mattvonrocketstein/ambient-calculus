@@ -20,7 +20,7 @@ defmodule Ambient do
   Consults the registry to return an ambient with the given name or nil
   """
   def to_string(ambient) when is_pid(ambient) do
-    name = Ambient.get_name(ambient)
+    name = Ambient.name(ambient)
     num_progs = Ambient.Algebra.count(ambient)
     "<Ambient:#{inspect name} progs=[#{inspect num_progs}]>]"
   end
@@ -144,7 +144,6 @@ defmodule Ambient do
   def parent(ambient), do: get_from_ambient(ambient, :parent)
 
   def name(ambient), do: get_from_ambient(ambient, :name)
-  def get_name(ambient), do: Ambient.name(ambient)
   def get_supervisor(ambient), do: Ambient.get_from_ambient(ambient, :super)
 
   def registrar(ambient), do: get_from_ambient(ambient, :registrar)
