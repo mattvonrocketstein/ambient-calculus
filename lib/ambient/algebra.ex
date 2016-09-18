@@ -36,11 +36,11 @@ defmodule Ambient.Algebra do
       #TODO:
       #  If the parent is not named m, this operation should block
       #  until a time when such a parent exists.
-      Functions.NOOP
+      raise "not implemented yet"
     end
-    Ambient.push(ambient, :parent, Ambient.parent(parent))
-    Ambient.pop(parent, Ambient.name(ambient))
-    ambient
+    grandparent = Ambient.parent(parent)
+    Ambient.reset_parent(ambient, grandparent)
+    {:ok, grandparent}
   end
   @doc """
   Answers how many (concurrent) programs this ambient is running
@@ -65,12 +65,12 @@ defmodule Ambient.Algebra do
     exists. If more than one m sibling exists, any one of them can be chosen.
   """
   def enter(n, m, _prog \\ Functions.noop) do
-    old_parent = Ambient.get_parent(n)
-    registrar = Ambient.get_registrar(n)
+    old_parent = Ambient.parent(n)
+    registrar = Ambient.registrar(n)
     case old_parent do
       nil ->
         Ambient.Registration.deregister(
-          registrar, Ambient.get_name(n))
+          registrar, Ambient.name(n))
       _ ->
         nil
     end

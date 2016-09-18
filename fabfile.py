@@ -63,6 +63,10 @@ def ambient_cluster(name='u1', mix_cmd=None):
             cookie=COOKIE, name=name,
             hostname=CLUSTER_HOSTNAME))
 
+def test():
+    cmd = "iex --name test@127.0.0.1 -S mix test"
+    api.local(cmd)
+
 def stop_cluster():
     NIY
 

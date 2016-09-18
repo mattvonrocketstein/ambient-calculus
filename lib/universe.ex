@@ -19,7 +19,8 @@ defmodule Universe do
   the node itself
   """
   def start_local_ambient do
-    Ambient.start_link(Node.self())
+    {:ok, pid} = Ambient.start_link(Node.self())
+    Ambient.bootstrap(pid)
   end
 
   @doc """

@@ -26,11 +26,24 @@ defmodule Ambient do
   end
 
   @doc """
+  Get or start an ambient with the given name,
+  returning it's pid.
+
+  FIXME: not working cross-cluster?
+  """
+  def get_or_start(atom_name) do
+    result = Ambient.start_link(atom_name)
+    case result do
+      {:ok, pid} -> pid
+      {:error, {:already_started, pid}} -> pid
+    end
+  end
+
+  @doc """
   Starts a Ambient with the given `name`.
   The name is given as a name so we can identify
   the ambient by name instead of using a PID.
   """
-
   def start_link(_any)
   def start_link([name | name_list]) do
     {:ok, pid} = start_link(name)
@@ -44,33 +57,37 @@ defmodule Ambient do
   end
   def start_link(atom_name) when is_atom(atom_name) do
     string_name = Atom.to_string(atom_name)
-    {:ok, registrar} = Ambient.Registration.default()
     msg = Functions.red("Ambient[#{string_name}].start_link: ")
+    {:ok, registrar} = Ambient.Registration.default()
     case registrar != nil && Process.alive?(registrar) do
       false ->
-        Logger.error ("Registration must be started before ambients can be created.  pid #{registrar}")
-        System.halt(1)
+        Functions.fatal_error(
+          "Registration must be started "<>
+          "before ambients can be created.  pid #{registrar}")
       true ->
         Logger.info "Starting ambient: #{[string_name]}"
         Logger.info msg <> "creating my supervisor "
-        {:ok, sup_pid} = Ambient.Supervisor.start_link(atom_name)
         ambient_data = %AmbientData{
           parent: nil,
           registrar: registrar,
-          super: sup_pid,
+          super: nil,
           name: atom_name,
           node: Node.self(),
           namespace: %{}
         }
-        {:ok, pid} = Agent.start(
+        Agent.start_link(
           fn -> ambient_data end,
           name: atom_name)
-        Ambient.Registration.register(registrar, atom_name, pid)
-        Logger.info msg<>"finished"
-        {:ok, pid}
     end
   end
-
+  def bootstrap(pid) when is_pid(pid) do
+    {:ok, registrar} = Ambient.Registration.default()
+    atom_name = Ambient.name(pid)
+    Ambient.Registration.register(registrar, atom_name, pid)
+    {:ok, sup_pid} = Ambient.Supervisor.start_link(atom_name)
+    set_super(pid, sup_pid)
+    {:ok, pid}
+  end
   @doc """
   Gets all the data currently in `ambient`.
   """
@@ -115,26 +132,34 @@ defmodule Ambient do
 
   def pop(ambient, var) do
     namespace = Ambient.namespace(ambient)
-    {_val, namespace} = namespace |>  Map.pop(var)
+    {val, namespace} = namespace |>  Map.pop(var)
     Agent.update(ambient,
       fn ambient_data ->
         %{ambient_data | namespace: namespace}
       end)
+    {val, namespace}
   end
 
-  def parent(ambient), do: get_parent(ambient)
-  def get_parent(ambient), do: get_from_ambient(ambient, :parent)
+  def parent(nil), do: nil
+  def parent(ambient), do: get_from_ambient(ambient, :parent)
 
   def name(ambient), do: get_from_ambient(ambient, :name)
   def get_name(ambient), do: Ambient.name(ambient)
   def get_supervisor(ambient), do: Ambient.get_from_ambient(ambient, :super)
 
+  def registrar(ambient), do: get_from_ambient(ambient, :registrar)
   def get_registrar(ambient), do: get_from_ambient(ambient, :registrar)
   def get_node(ambient), do: get_from_ambient(ambient, :node)
   def node(ambient), do: get_node(ambient)
   def get_ambients(ambient), do: get_from_ambient(ambient, :ambients)
   def children(ambient), do: get_ambients(ambient)
 
+  def has_child?(ambient, name) when is_atom(name) do
+    name in Map.keys(Ambient.children(ambient))
+  end
+  def has_child?(ambient, other) when is_pid(other) do
+    other in Map.values(Ambient.children(ambient))
+  end
   @doc """
   Returns an answer for whether this ambient is
   healthy.  This can be hard to determine, depending
@@ -215,17 +240,20 @@ defmodule Ambient do
     new_parent = (is_pid(new_parent) && new_parent) || lookup(new_parent)
     ambient_name = Ambient.name(ambient)
     Logger.info "setting new parent for #{inspect ambient_name}"
-    current_parent = Ambient.get_parent(ambient)
+    current_parent = Ambient.parent(ambient)
     Ambient.remove_ambient(current_parent, ambient)
     add_ambient(new_parent, ambient)
     set_parent(ambient, new_parent)
   end
-  defp set_parent(ambient,new_parent) do
+  defp set_base(ambient, var, val) do
     Agent.update(
       ambient,
       fn ambient_data ->
-        %{ambient_data|parent: new_parent}
+        Map.put(ambient_data, var, val)
       end)
+
   end
+  defp set_parent(ambient, new_parent), do: set_base(ambient, :parent, new_parent)
+  defp set_super(ambient, new_super), do: set_base(ambient, :super, new_super)
 
 end
