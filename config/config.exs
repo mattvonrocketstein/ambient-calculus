@@ -2,7 +2,7 @@
 # and its dependencies with the aid of the Mix.Config module.
 use Mix.Config
 require Logger
-def red(msg), do: IO.ANSI.red()<>msg<>IO.ANSI.reset()
+red = fn msg -> IO.ANSI.red()<>msg<>IO.ANSI.reset() end
 
 extra_config_fpath = "#{Mix.env}.exs"
 Logger.info red("MIX_ENV: ")<>Mix.env
