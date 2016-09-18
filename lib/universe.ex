@@ -1,15 +1,29 @@
 require Logger
 
 defmodule Universe do
-  defmodule Registration do
-    def sync_globals do
-      #:timer.sleep(1000)
-      #{:ok, registrar} = Ambient.Registration.default()
-      #registrations = Ambient.Registration.get(
-      #  registrar)
-      #Enum.map(registrations, fn {k,v} ->
-      #  :global.register_name(k, Map.get(v, :pid))
-      #end)
+  @doc """
+  """
+  def assert_unique(atom_name) do
+    pid = Universe.lookup(atom_name)
+    case pid do
+      nil ->
+        {:ok, atom_name}
+      _ ->
+        err = "Name conflict: "
+        err = err <> "New #{inspect atom_name} vs "
+        err = err <> "Old #{inspect pid}"
+        {:error, err}
+    end
+  end
+
+  @doc """
+  """
+  def lookup(pid) when is_pid(pid), do: pid
+  def lookup(name) when is_atom(name) do
+    result = :global.whereis_name(name)
+    case result do
+      :undefined -> nil
+      _ -> result
     end
   end
 
@@ -85,12 +99,6 @@ defmodule Universe.Supervisor do
   """
   def registration_children do
     [
-      # periodic worker worker who starts the registration agent
-      worker(
-          Task, [&Universe.Registration.sync_globals/0 ],
-          id: :startUniversalRegistration,
-          restart: :transient),
-
       # periodic worker worker who starts the registration agent
       worker(
           Task, [&Universe.start_registration_subsystem/0 ],

@@ -2,19 +2,17 @@
 # and its dependencies with the aid of the Mix.Config module.
 use Mix.Config
 require Logger
-red = fn msg -> IO.ANSI.red()<>msg<>IO.ANSI.reset() end
 
 extra_config_fpath = "#{Mix.env}.exs"
-Logger.info red("MIX_ENV: ")<>Mix.env
-Logger.info red("loading: ")<>extra_config_fpath
+#Logger.info IO.ANSI.red()<>"MIX_ENV: "<>IO.ANSI.reset()<>Mix.env
+#Logger.info "  loading config: "<>extra_config_fpath
 import_config extra_config_fpath
 
 config :logger, :console,
   format: "$time $metadata[$level] $levelpad$message\n",
   metadata: [:pid],
-  backends: [:console], # default, support for additional log sinks
-  compile_time_purge_level: :info # purges logs with lower level than this
-
+  backends: [:console] # default, support for additional log sinks
+  #compile_time_purge_level: :info, # purges logs with lower level than this
 #config :iex, default_prompt: "A:C>>>"
 
 # This configuration is loaded before any dependency and is restricted

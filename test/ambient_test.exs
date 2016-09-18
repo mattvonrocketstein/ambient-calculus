@@ -1,18 +1,38 @@
-defmodule Ambient.Test do
-  #use ExUnit.Case, async: false
+defmodule AmbientOTP.Test do
+  use ExUnit.Case, async: true
+  # "setup_all" is called once to setup the case before any test is run
+  setup_all do
+    IO.puts "Starting AmbientOTP Test"
+    :ok # No metadata
+  end
+  test "basic start_link" do
+    {:ok, pid} = Ambient.get_or_start(:whatever)
+  end
+  test "Ambient.start_many()" do
+    ambients = [:x1, :x2, :x3]
+    |> Ambient.start_many()
+    count = ambients |> Enum.count
+    assert count == 3
+    assert :x1 in ambients
+    pid = Map.values(ambients)
+    |>Enum.fetch(1)
+    assert is_pid(pid)
+  end
+end
+defmodule AmbientBase.Test do
   use ExUnit.Case, async: true
 
   # "setup_all" is called once to setup the case before any test is run
   setup_all do
-    IO.puts "Starting AmbientTest"
-    # No metadata
-    :ok
+    IO.puts "Starting AmbientBaseTest"
+    :ok # No metadata
   end
 
-  # "setup" is called before each test is run
-  setup do
-    # important, otherwise Ambient.open() will fail tests because it calls Agent.stop()
-    #Process.flag(:trap_exit, true)
+
+  setup do # called before each test is run
+    # important, otherwise Ambient.open() will fail
+    # tests because it calls Agent.stop()
+    Process.flag(:trap_exit, true)
     #on_exit fn ->
       #IO.puts "This is invoked once the test is done
     #  :noop
@@ -29,7 +49,7 @@ defmodule Ambient.Test do
   # Same as "setup", but receives the context
   # for the current test
   setup context do
-    msg = IO.ANSI.red()<>"Testing: "
+    msg = IO.ANSI.red()<>"\nTesting: "
     test_bits = String.split(Atom.to_string(context[:test]))
     test_name = test_bits
     |> Enum.slice(1, Enum.count(test_bits))
@@ -73,27 +93,6 @@ defmodule Ambient.Test do
 
   test "default parent is toplevel",%{ambient1: ambient1} do
     assert Ambient.parent(ambient1) == nil
-  end
-  test "exit capability", %{ambient1: ambient1, ambient2: ambient2} do
-    #ambient2 |> Ambient.Algebra.enter(ambient1)
-    #assert Ambient.parent(ambient2) == ambient1
-    #ambient2 |> Ambient.Algebra.exit()
-    #assert Ambient.parent(ambient2) != ambient1
-  end
-
-  test "open capability", %{ambient1: ambient1, ambient2: ambient2} do
-    ambient1|>Ambient.put(:foo, :bar)
-    ambient1|>Ambient.Algebra.enter(ambient2)
-    assert nil==Ambient.namespace(ambient2)[:foo]
-    Ambient.Algebra.open(ambient1)
-    assert :bar==Ambient.namespace(ambient2)[:foo]
-  end
-
-  test "entry capability", %{ambient1: ambient1, ambient2: ambient2} do
-    ambient2 |> Ambient.Algebra.enter(ambient1)
-    assert Ambient.parent(ambient2) == ambient1
-    assert ambient2 in Map.values(Ambient.children(ambient1))
-    assert Ambient.has_child?(ambient1, ambient2)
   end
 
   test "parent assignment", %{ambient1: ambient1, ambient2: ambient2} do

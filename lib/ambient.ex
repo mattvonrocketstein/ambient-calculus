@@ -24,15 +24,7 @@ defmodule Ambient do
     num_progs = Ambient.Algebra.count(ambient)
     "<Ambient:#{inspect name} progs=[#{inspect num_progs}]>]"
   end
-  def assert_unique(atom_name) do
-    pid=Ambient.lookup(name)
-    case pid do
-      nil ->
-        :noop
-      _ >
-      raise "BOOP #{pid}"
-    end
-  end
+
   @doc """
   Get or start an ambient with the given name,
   returning it's pid.
@@ -53,17 +45,19 @@ defmodule Ambient do
   the ambient by name instead of using a PID.
   """
   def start_link(_any)
-  def start_link([name | name_list]) do
+  def start_many([name | name_list], work_so_far\\%{}) do
     {:ok, pid} = start_link(name)
+    work_so_far = Map.put(work_so_far, name, pid)
     case Enum.empty?(name_list) do
-      true -> {:ok, pid}
-      false -> start_link(name_list)
+      true -> work_so_far
+      false -> start_many(name_list, work_so_far)
     end
   end
   def start_link(string_name) when is_bitstring(string_name) do
     start_link(String.to_atom(string_name))
   end
   def start_link(atom_name) when is_atom(atom_name) do
+    {:ok, _} = Universe.assert_unique(atom_name)
     string_name = Atom.to_string(atom_name)
     msg = Functions.red("Ambient[#{string_name}].start_link: ")
     {:ok, registrar} = Ambient.Registration.default()
@@ -85,17 +79,22 @@ defmodule Ambient do
         }
         Agent.start_link(
           fn -> ambient_data end,
-          name: atom_name)
+          name: atom_name,
+          id: atom_name)
     end
   end
   def bootstrap(pid) when is_pid(pid) do
     {:ok, registrar} = Ambient.Registration.default()
     atom_name = Ambient.name(pid)
-    Ambient.Registration.register(registrar, atom_name, pid)
-    {:ok, sup_pid} = Ambient.Supervisor.start_link(atom_name)
+    Logger.info "Bootstrapping ambient #{inspect atom_name}"
+    Ambient.Registration.register(
+      registrar, atom_name, pid)
+    {:ok, sup_pid} = Ambient.Supervisor.start_link(
+      atom_name)
     set_super(pid, sup_pid)
     {:ok, pid}
   end
+
   @doc """
   Gets all the data currently in `ambient`.
   """
@@ -155,9 +154,8 @@ defmodule Ambient do
   def get_supervisor(ambient), do: Ambient.get_from_ambient(ambient, :super)
 
   def registrar(ambient), do: get_from_ambient(ambient, :registrar)
-  def get_registrar(ambient), do: get_from_ambient(ambient, :registrar)
-  def get_node(ambient), do: get_from_ambient(ambient, :node)
-  def node(ambient), do: get_node(ambient)
+
+  def node(ambient), do: get_from_ambient(ambient, :node)
   def get_ambients(ambient), do: get_from_ambient(ambient, :ambients)
   def children(ambient), do: get_ambients(ambient)
 
@@ -167,13 +165,14 @@ defmodule Ambient do
   def has_child?(ambient, other) when is_pid(other) do
     other in Map.values(Ambient.children(ambient))
   end
+
   @doc """
   Returns an answer for whether this ambient is
   healthy.  This can be hard to determine, depending
   on whether the ambient is remote or not
   """
   def health_issues(ambient) do
-    ambient = lookup(ambient)
+    ambient = Universe.lookup(ambient)
     issues = []
     case Ambient.local?(ambient) do
       true ->
@@ -205,15 +204,11 @@ defmodule Ambient do
   def healthy?(ambient) do
     Enum.empty?(health_issues(ambient))
   end
+
   def remote?(ambient), do: not local?(ambient)
+
   def local?(ambient) do
     Node.self()==get_from_ambient(ambient, :node)
-  end
-  def lookup(pid) when is_pid(pid) do
-    pid
-  end
-  def lookup(name) when is_atom(name) do
-    lookup(:global.whereis_name(name))
   end
 
   @doc """
@@ -221,12 +216,12 @@ defmodule Ambient do
   """
   def remove_ambient(nil, ambient2) do
     Ambient.Registration.deregister(
-      Ambient.get_registrar(ambient2),
+      Ambient.registrar(ambient2),
       ambient2)
   end
   def remove_ambient(ambient1, ambient2) do
-    ambient1 = (is_pid(ambient1) && ambient1) || lookup(ambient1)
-    ambient2 = (is_pid(ambient2) && ambient2) || lookup(ambient2)
+    ambient1 = Universe.lookup(ambient1)
+    ambient2 = Universe.lookup(ambient2)
     Agent.update(ambient1, fn ambient_data ->
       %{ambient_data | ambients: Enum.into(
         Enum.filter(
@@ -243,8 +238,8 @@ defmodule Ambient do
     end)
   end
   def reset_parent(ambient, new_parent) do
-    ambient = (is_pid(ambient) && ambient) || lookup(ambient)
-    new_parent = (is_pid(new_parent) && new_parent) || lookup(new_parent)
+    ambient = Universe.lookup(ambient)
+    new_parent = Universe.lookup(new_parent)
     ambient_name = Ambient.name(ambient)
     Logger.info "setting new parent for #{inspect ambient_name}"
     current_parent = Ambient.parent(ambient)
