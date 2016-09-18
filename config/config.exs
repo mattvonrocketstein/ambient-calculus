@@ -1,8 +1,13 @@
 # This file is responsible for configuring your application
 # and its dependencies with the aid of the Mix.Config module.
 use Mix.Config
+require Logger
+def red(msg), do: IO.ANSI.red()<>msg<>IO.ANSI.reset()
 
-import_config "#{Mix.env}.exs"
+extra_config_fpath = "#{Mix.env}.exs"
+Logger.info red("MIX_ENV: ")<>Mix.env
+Logger.info red("loading: ")<>extra_config_fpath
+import_config extra_config_fpath
 
 config :logger, :console,
   format: "$time $metadata[$level] $levelpad$message\n",

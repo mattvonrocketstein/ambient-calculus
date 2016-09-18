@@ -24,7 +24,15 @@ defmodule Ambient do
     num_progs = Ambient.Algebra.count(ambient)
     "<Ambient:#{inspect name} progs=[#{inspect num_progs}]>]"
   end
-
+  def assert_unique(atom_name) do
+    pid=Ambient.lookup(name)
+    case pid do
+      nil ->
+        :noop
+      _ >
+      raise "BOOP #{pid}"
+    end
+  end
   @doc """
   Get or start an ambient with the given name,
   returning it's pid.
