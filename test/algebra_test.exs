@@ -49,10 +49,10 @@ defmodule Algebra.Test do
   end
 
   test "exit capability", %{ambient1: ambient1, ambient2: ambient2} do
-    #ambient2 |> Ambient.Algebra.enter(ambient1)
-    #assert Ambient.parent(ambient2) == ambient1
-    #ambient2 |> Ambient.Algebra.exit()
-    #assert Ambient.parent(ambient2) != ambient1
+    ambient2 |> Ambient.Algebra.enter(ambient1)
+    assert Ambient.parent(ambient2) == ambient1
+    ambient2 |> Ambient.Algebra.exit()
+    assert Ambient.parent(ambient2) != ambient1
   end
 
   test "open capability", %{ambient1: ambient1, ambient2: ambient2} do

@@ -59,7 +59,7 @@ defmodule Ambient.Algebra do
   @doc """
   Entry Capability (aka "in")
   An entry capability, in m, can be used in the action: "in m.P"
-  which instructsthe ambientsurrounding in m. P to enter a sibling ambient named m.
+  which instructsthe ambient surrounding in m. P to enter a sibling ambient named m.
   TODO:
     If no sibling m can be found, the operation blocks until a time when such a sibling
     exists. If more than one m sibling exists, any one of them can be chosen.
