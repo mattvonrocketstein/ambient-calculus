@@ -5,13 +5,16 @@ defmodule Display do
       :ambientcalculus,
       :display_loop,
       false)
-
   end
   def display_cluster_members() do
-    Logger.info "ClusterMembers: " <> Enum.join(Ambient.Topology.cluster_members,", ")
+    Logger.info "ClusterMembers: " <> Enum.join(Ambient.Topology.cluster,", ")
   end
   def display_serial_number() do
     version = Functions.version(Ambient)
+    {:ok, version} = Enum.fetch(version,0)
+    version = version
+    |>to_string
+    |>String.slice(0,7)
     Logger.info "System version #{inspect version}"
   end
   def display_neighborhood() do
@@ -22,30 +25,13 @@ defmodule Display do
   end
   def display_nonlocal() do
     Logger.info "External Data:"
-    ambients = :pg2.get_members(:ambients)
-    results = ambients
-    |> Enum.filter(fn ambient ->
-      not Ambient.local?(ambient) end)
-    |> Enum.map(fn ambient ->
-        {Ambient.name(ambient), Ambient.Formatter.format(ambient)}
-      end)
-    |> Enum.into(Map.new)
+    results = Ambient.Topology.nonlocal_ambients()
     Apex.ap results
   end
+
   def display_local_data() do
     Logger.info "Local Data:"
-    ambients = :pg2.get_members(:ambients)
-    result = ambients
-    |> Enum.map(fn ambient->
-      case Ambient.local?(ambient) do
-        true ->
-          {Ambient.name(ambient), Ambient.Formatter.format(ambient)}
-        false ->
-          nil
-      end
-    end)
-    |> Enum.filter(fn x-> x != nil end)
-    |> Enum.into(Map.new)
+    result = Ambient.Topology.local_ambients()
     Apex.ap result
   end
 

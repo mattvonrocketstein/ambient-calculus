@@ -21,6 +21,7 @@ defmodule Universe do
   def lookup(pid) when is_pid(pid), do: pid
   def lookup(name) when is_atom(name) do
     result = :global.whereis_name(name)
+    #result = :gproc.lookup_global_name(name)
     case result do
       :undefined -> nil
       _ -> result
@@ -34,13 +35,13 @@ defmodule Universe do
   """
   def start_local_ambient do
     {:ok, pid} = Ambient.start_link(Node.self())
-    #Ambient.bootstrap(pid)
   end
 
   @doc """
   """
   def start_registration_subsystem do
     #Ambient.Registration.start_link(Node.self())
+    #:gproc.add_global_property(Node.self(),%)
     Universe.start_local_ambient()
   end
 end
@@ -99,6 +100,7 @@ defmodule Universe.Supervisor do
   """
   def registration_children do
     [
+      #supervisor(SLPNodeRegister, []),
       # periodic worker worker who starts the registration agent
       worker(
           Task, [&Universe.start_registration_subsystem/0 ],

@@ -2,11 +2,32 @@ require Logger
 defmodule Ambient.Topology do
   @doc """
   Returns a list of atoms that represent other
-  elixir VMs accessible to this runtime
+  elixir VM Nodes accessible to this runtime
   """
-  def cluster_members() do
+  def cluster() do
     # returns a list of atoms
     Node.list()
   end
+  def filter(fxn) do
+    ambients = :pg2.get_members(:ambients)
+    result = ambients
+    |> Enum.filter(fxn)
+    |> Enum.map(fn ambient->
+      { Ambient.name(ambient),
+        Ambient.Formatter.format(ambient) }
+    end)
+    |> Enum.into(Map.new)
+  end
 
+  @doc """
+  """
+  def local_ambients() do
+    filter(fn ambient -> Ambient.local?(ambient) end)
+  end
+  @doc """
+  """
+  def nonlocal_ambients() do
+    filter(fn ambient ->
+      not Ambient.local?(ambient) end)
+  end
 end
