@@ -1,4 +1,5 @@
 require Logger
+
 defmodule AmbientData do
   defstruct(name: :"UnknownAmbient",
     parent: nil,
@@ -16,10 +17,6 @@ defmodule Ambient do
 
   use GenServer
 
-  def handle_cast({:push, item}, state) do
-    {:noreply, [item | state]}
-  end
-
   @moduledoc """
   """
 
@@ -33,20 +30,6 @@ defmodule Ambient do
   end
 
   @doc """
-  Get or start an ambient with the given name,
-  returning it's pid.
-
-  FIXME: not working cross-cluster?
-  """
-  def get_or_start(atom_name) do
-    result = Ambient.start_link(atom_name)
-    case result do
-      {:ok, pid} -> pid
-      {:error, {:already_started, pid}} -> pid
-    end
-  end
-
-  @doc """
   Starts a Ambient with the given `name`.
   The name is given as a name so we can identify
   the ambient by name instead of using a PID.
@@ -55,40 +38,25 @@ defmodule Ambient do
   def start_link(string_name) when is_bitstring(string_name) do
     start_link(String.to_atom(string_name))
   end
+
   def start_link(atom_name) when is_atom(atom_name) do
     {:ok, _} = Universe.assert_unique(atom_name)
     string_name = Atom.to_string(atom_name)
-    msg = Functions.red("Ambient[#{string_name}].start_link: ")
-    #{:ok, registrar} = Ambient.Registration.default()
-    #case registrar != nil && Process.alive?(registrar) do
-    #  false ->
-    #    Functions.fatal_error(
-    #      "Registration must be started "<>
-    #      "before ambients can be created.  pid #{registrar}")
-    #  true ->
-      Logger.info "Starting ambient: #{[string_name]}"
-      Logger.info msg <> "creating my supervisor "
-      ambient_data = %AmbientData{
-        parent: nil,
-        #registrar: registrar,
-        super: nil,
-        name: atom_name,
-        node: Node.self(),
-        namespace: %{}
-      }
-      {:ok, pid} = GenServer.start_link(
-        Ambient, ambient_data,
-        name: atom_name)
-      :pg2.create(:ambients)
-      :pg2.join(:ambients, pid)
-      {:ok, sup_pid} = Ambient.Supervisor.start_link(
-        atom_name)
-      set_super(pid, sup_pid)
-      {:ok, pid}
-      #Agent.start_link(
-      #  fn -> ambient_data end,
-      #  name: atom_name,
-      #  id: atom_name)
+    Logger.info "Starting ambient: #{[string_name]}"
+    ambient_data = %AmbientData{
+      parent: nil,
+      #registrar: registrar,
+      super: nil,
+      name: atom_name,
+      node: Node.self(),
+      namespace: %{}
+    }
+    {:ok, pid} = GenServer.start_link(
+      Ambient, ambient_data, name: atom_name)
+    Ambient.Topology.register(pid)
+    {:ok, sup_pid} = Ambient.Supervisor.create_for(pid)
+    set_super(pid, sup_pid)
+    {:ok, pid}
   end
 
   @doc """
@@ -103,16 +71,8 @@ defmodule Ambient do
     #    %{}
     #  end
   end
-  def handle_call({:get},_from, ambient_data) do
-    {:reply, ambient_data, ambient_data}
-  end
   def get_from_ambient(ambient, var) do
-    #Agent.get(ambient, fn ambient_data -> Map.get(ambient_data, var) end)
-    GenServer.call(ambient, {:get_from_ambient,var})
-    #, fn ambient_data -> Map.get(ambient_data, var) end)
-  end
-  def handle_call( {:get_from_ambient,var},_from, ambient_data) do
-    {:reply, Map.get(ambient_data, var), ambient_data}
+    GenServer.call(ambient, {:get_from_ambient, var})
   end
 
   def namespace(ambient) do
@@ -128,9 +88,6 @@ defmodule Ambient do
     #end)
     GenServer.call(ambient, {:get_from_namespace, var})
   end
-  def handle_call({:get_from_namespace, var},_from, ambient_data) do
-    {:reply, Map.get(ambient_data, var), ambient_data}
-  end
 
   @doc """
   Writes a new value of `var` for `ambient`
@@ -138,38 +95,21 @@ defmodule Ambient do
   def put(ambient, var, val) do
     GenServer.call(ambient, {:put, var, val})
   end
-  def handle_call({:put, var, val}, _from, ambient_data) do
-    namespace = ambient_data|>Map.get(:namespace)
-    |> Map.put(var, val)
-     {:reply, :ok, %{ambient_data|namespace: namespace}}
-  end
   def push(ambient, var, val), do: put(ambient, var, val)
 
   def pop(ambient, var) do
     GenServer.call(ambient, {:pop, var})
   end
-  def handle_call({:pop, var}, _from, ambient_data) do
-    namespace = ambient_data |> Map.get(:namespace)
-    {val, namespace} = Map.pop(namespace, var)
-    {:reply, {val, namespace}, namespace}
-  end
 
   @doc """
   Removes sub-ambient `ambient2` from parent `ambient1`
   """
-  def remove_ambient(nil, ambient2), do: :ok
+  def remove_ambient(nil, _ambient2), do: :ok
   def remove_ambient(ambient1, ambient2) do
     ambient1 = Universe.lookup(ambient1)
     ambient2 = Universe.lookup(ambient2)
     GenServer.cast(ambient1, {:remove_ambient, ambient2})
   end
-  def handle_cast({:remove_ambient, ambient2}, ambient_data) do
-    ambients=Map.get(ambient_data, :ambients)
-    |> Enum.filter(fn {_name, pid} -> pid != ambient2 end)
-    |> Enum.into(Map.new)
-    result = %{ ambient_data | ambients: ambients }
-    {:noreply, result}
-    end
 
   def parent(nil), do: nil
   def parent(ambient), do: get_from_ambient(ambient, :parent)
@@ -180,14 +120,19 @@ defmodule Ambient do
   def registrar(ambient), do: get_from_ambient(ambient, :registrar)
 
   def node(ambient), do: get_from_ambient(ambient, :node)
-  def get_ambients(ambient), do: get_from_ambient(ambient, :ambients)
-  def children(ambient), do: get_ambients(ambient)
+  def children(ambient), do: get_from_ambient(ambient, :ambients)
 
+  @doc """
+  Answers whether an ambient named `name` is inside of ambient `ambient`
+  """
   def has_child?(ambient, name) when is_atom(name) do
     name in Map.keys(Ambient.children(ambient))
   end
-  def has_child?(ambient, other) when is_pid(other) do
-    other in Map.values(Ambient.children(ambient))
+  @doc """
+  Answers whether an ambient with pid `pid` is inside of ambient `ambient`
+  """
+  def has_child?(ambient, pid) when is_pid(pid) do
+    pid in Map.values(Ambient.children(ambient))
   end
 
   @doc """
@@ -197,11 +142,10 @@ defmodule Ambient do
   """
   def health_issues(ambient) do
     ambient = Universe.lookup(ambient)
-    issues = []
-    case Ambient.local?(ambient) do
+    issues = case Ambient.local?(ambient) do
       true ->
         if not Process.alive?(ambient) do
-          issues = issues ++ ["local process is not alive"]
+          ["local process is not alive"]
         end
       false ->
         node = Ambient.node(ambient)
@@ -210,7 +154,7 @@ defmodule Ambient do
           send respond_to, Process.alive?(ambient)
         end)
 
-        issues = issues ++ receive do
+        receive do
           aliveness ->
             case aliveness do
               true ->
@@ -238,11 +182,6 @@ defmodule Ambient do
   defp add_ambient(new_parent, ambient) do
     GenServer.cast(new_parent, {:add_ambient, ambient})
   end
-  def handle_cast({:add_ambient, ambient}, ambient_data) do
-      ambients = Map.get(ambient_data, :ambients)
-      |> Map.put(Ambient.name(ambient), ambient)
-      {:noreply, %{ambient_data | ambients: ambients}}
-  end
 
   def reset_parent(ambient, new_parent) do
     ambient = Universe.lookup(ambient)
@@ -257,16 +196,48 @@ defmodule Ambient do
   defp set_base(ambient, var, val) do
     GenServer.call(ambient,{:set_base, var, val})
   end
-  def handle_call({:set_base,var,val},_from,ambient_data) do
-    #Agent.update(
-    #  ambient,
-    #  fn ambient_data ->
-    #    Map.put(ambient_data, var, val)
-    #  end)
-    {:reply, :ok, Map.put(ambient_data, var, val)}
-  end
 
   def set_namespace(ambient,new_namespace), do: set_base(ambient, :namespace, new_namespace)
   defp set_parent(ambient, new_parent), do: set_base(ambient, :parent, new_parent)
   defp set_super(ambient, new_super), do: set_base(ambient, :super, new_super)
+
+  def handle_cast({:add_ambient, ambient}, ambient_data) do
+      ambients = Map.get(ambient_data, :ambients)
+      |> Map.put(Ambient.name(ambient), ambient)
+      {:noreply, %{ambient_data | ambients: ambients}}
+  end
+  def handle_cast({:push, item}, state) do
+    {:noreply, [item | state]}
+  end
+  def handle_cast({:remove_ambient, ambient2}, ambient_data) do
+    ambients=Map.get(ambient_data, :ambients)
+    |> Enum.filter(fn {_name, pid} -> pid != ambient2 end)
+    |> Enum.into(Map.new)
+    result = %{ ambient_data | ambients: ambients }
+    {:noreply, result}
+  end
+
+  def handle_call({:get_from_namespace, var},_from, ambient_data) do
+    {:reply, Map.get(ambient_data, var), ambient_data}
+  end
+  def handle_call({:pop, var}, _from, ambient_data) do
+    namespace = ambient_data |> Map.get(:namespace)
+    {val, namespace} = Map.pop(namespace, var)
+    {:reply, {val, namespace}, namespace}
+  end
+  def handle_call({:set_base,var,val},_from,ambient_data) do
+    {:reply, :ok, Map.put(ambient_data, var, val)}
+  end
+  def handle_call({:get},_from, ambient_data) do
+    {:reply, ambient_data, ambient_data}
+  end
+  def handle_call( {:get_from_ambient, var}, _from, ambient_data) do
+    {:reply, Map.get(ambient_data, var), ambient_data}
+  end
+  def handle_call({:put, var, val}, _from, ambient_data) do
+    namespace = ambient_data|>Map.get(:namespace)
+    |> Map.put(var, val)
+     {:reply, :ok, %{ambient_data|namespace: namespace}}
+  end
+
 end

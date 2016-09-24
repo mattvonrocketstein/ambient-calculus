@@ -19,8 +19,8 @@ defmodule Algebra.Test do
     #  :noop
     #end
     # Returns extra metadata to be merged into context
-    ambient1 = Ambient.get_or_start(:ambient1)
-    ambient2 = Ambient.get_or_start(:ambient2)
+    {:ok, ambient1} = Ambient.start_link(:ambient1)
+    {:ok, ambient2} = Ambient.start_link(:ambient2)
     [
       ambient1: ambient1,
       ambient2: ambient2
@@ -66,6 +66,7 @@ defmodule Algebra.Test do
   end
 
   test "entry capability", %{ambient1: ambient1, ambient2: ambient2} do
+    assert not (Ambient.parent(ambient2) == ambient1)
     ambient2 |> Ambient.Algebra.enter(ambient1)
     assert Ambient.parent(ambient2) == ambient1
     assert ambient2 in Map.values(Ambient.children(ambient1))

@@ -1,6 +1,25 @@
 require Logger
 
 defmodule Universe do
+
+  @doc """
+  """
+  def ambient_spec(ambient_name) when is_atom(ambient_name) do
+    import Supervisor.Spec
+    worker(
+      Ambient,
+      [ambient_name],
+      id: ambient_name,
+      restart: :transient)
+  end
+
+  @doc """
+  """
+  def start_ambient(ambient_name) do
+    Supervisor.start_child(
+      Universe.Supervisor, ambient_spec(ambient_name))
+  end
+
   @doc """
   """
   def assert_unique(atom_name) do
@@ -32,7 +51,9 @@ defmodule Universe.Supervisor do
   use Supervisor
 
   def start_link do
-    Supervisor.start_link(__MODULE__, [], name: Universe.Supervisor)
+    Supervisor.start_link(
+    __MODULE__, [],
+      name: __MODULE__)
   end
 
   def init([]) do

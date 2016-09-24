@@ -15,4 +15,10 @@ defmodule Ambient.Supervisor do
     opts = [strategy: :one_for_all]
     supervise(children, opts)
   end
+  def create_for(ambient) do
+    ambient_name = Ambient.name(ambient)
+    msg = "creating program-space supervisor for ambient #{ambient_name}"
+    Logger.info msg
+    {:ok, sup_pid} = Ambient.Supervisor.start_link(ambient_name)
+  end
 end

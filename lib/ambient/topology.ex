@@ -1,5 +1,11 @@
 require Logger
 defmodule Ambient.Topology do
+
+  def register(pid) do
+    :pg2.create(:ambients)
+    :pg2.join(:ambients, pid)
+  end
+
   @doc """
   Returns a list of atoms that represent other
   elixir VM Nodes accessible to this runtime

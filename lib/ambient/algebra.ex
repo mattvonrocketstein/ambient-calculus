@@ -76,9 +76,12 @@ defmodule Ambient.Algebra do
     If no sibling m can be found, the operation blocks until a time when such a sibling
     exists. If more than one m sibling exists, any one of them can be chosen.
   """
-  def enter(n, m, _prog \\ Functions.noop) do
-    old_parent = Ambient.parent(n)
-    Ambient.reset_parent(n, m)
+  def enter(ambient1, ambient2, prog\\Functions.noop)
+  def enter(ambient1, ambient2, prog) when is_atom(ambient1) and is_atom(ambient2) do
+    enter(Universe.lookup(ambient1), Universe.lookup(ambient2), prog)
+  end
+  def enter(ambient1, ambient2, _prog) when is_pid(ambient1) and is_pid(ambient2) do
+    Ambient.reset_parent(ambient1, ambient2)
   end
 
   @doc """

@@ -8,7 +8,7 @@ defmodule AmbientOTP.Test do
   end
 
   test "basic start_link" do
-    {:ok, pid} = Ambient.start_link(:whatever)
+    {:ok, _pid} = Ambient.start_link(:whatever)
   end
 end
 defmodule AmbientBase.Test do
@@ -16,7 +16,7 @@ defmodule AmbientBase.Test do
 
   # "setup_all" is called once to setup the case before any test is run
   setup_all do
-    IO.puts "Starting AmbientBaseTest"
+    IO.puts Functions.red "Starting test-class: AmbientBaseTest"
     :ok # No metadata
   end
 
@@ -30,8 +30,8 @@ defmodule AmbientBase.Test do
     #  :noop
     #end
     # Returns extra metadata to be merged into context
-    ambient1 = Ambient.get_or_start(:ambient1)
-    ambient2 = Ambient.get_or_start(:ambient2)
+    {:ok,ambient1} = Ambient.start_link(:ambient1)
+    {:ok, ambient2} = Ambient.start_link(:ambient2)
     [
       ambient1: ambient1,
       ambient2: ambient2
@@ -41,7 +41,7 @@ defmodule AmbientBase.Test do
   # Same as "setup", but receives the context
   # for the current test
   setup context do
-    msg = IO.ANSI.red()<>"\nTesting: "
+    msg = IO.ANSI.red()<>"\nTesting: "<> IO.ANSI.reset()
     test_bits = String.split(Atom.to_string(context[:test]))
     test_name = test_bits
     |> Enum.slice(1, Enum.count(test_bits))
