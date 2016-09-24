@@ -146,6 +146,8 @@ defmodule Ambient do
       true ->
         if not Process.alive?(ambient) do
           ["local process is not alive"]
+        else
+          []
         end
       false ->
         node = Ambient.node(ambient)

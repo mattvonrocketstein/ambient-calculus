@@ -1,9 +1,15 @@
 require Logger
+
 defmodule Ambient.Topology do
 
-  def register(pid) do
+  defp pg2_handle() do
     :pg2.create(:ambients)
-    :pg2.join(:ambients, pid)
+    :ambients
+  end
+
+  def register(pid) do
+    pg2_handle()
+    |> :pg2.join(pid)
   end
 
   @doc """
@@ -15,12 +21,12 @@ defmodule Ambient.Topology do
     Node.list()
   end
   def filter(fxn) do
-    ambients = :pg2.get_members(:ambients)
-    result = ambients
+    result = pg2_handle()
+    |> :pg2.get_members()
     |> Enum.filter(fxn)
     |> Enum.map(fn ambient->
       { Ambient.name(ambient),
-        Ambient.Formatter.format(ambient) }
+        ambient }
     end)
     |> Enum.into(Map.new)
   end

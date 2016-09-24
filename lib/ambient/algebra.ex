@@ -80,7 +80,8 @@ defmodule Ambient.Algebra do
   def enter(ambient1, ambient2, prog) when is_atom(ambient1) and is_atom(ambient2) do
     enter(Universe.lookup(ambient1), Universe.lookup(ambient2), prog)
   end
-  def enter(ambient1, ambient2, _prog) when is_pid(ambient1) and is_pid(ambient2) do
+  def enter(ambient1,  ambient2, _prog) when is_pid(ambient1) and is_pid(ambient2) do
+    Display.write("algebra::enter",[ambient1,ambient2])
     Ambient.reset_parent(ambient1, ambient2)
   end
 

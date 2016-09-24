@@ -55,6 +55,9 @@ defmodule Display do
   def display_nonlocal() do
     Logger.info "External Data:"
     results = Ambient.Topology.nonlocal_ambients()
+    |> Enum.map(fn {ambient_name, ambient_pid} ->
+      {ambient_name, Ambient.Formatter.format(ambient_pid)} end)
+    |> Enum.into(Map.new)
     Apex.ap results
   end
 

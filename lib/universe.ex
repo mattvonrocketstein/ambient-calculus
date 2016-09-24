@@ -39,10 +39,13 @@ defmodule Universe do
   """
   def lookup(pid) when is_pid(pid), do: pid
   def lookup(name) when is_atom(name) do
-    result = :global.whereis_name(name)
-    case result do
-      :undefined -> nil
-      _ -> result
+    ambients = Ambient.Topology.filter(
+      fn ambient -> name == Ambient.name(ambient)
+      end)
+    ambients = Map.values(ambients)
+    case Enum.fetch(ambients, 0) do
+      {:ok, result} -> result
+      :error -> nil
     end
   end
 end
