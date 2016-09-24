@@ -34,13 +34,13 @@ defmodule Universe do
   """
   def start_local_ambient do
     {:ok, pid} = Ambient.start_link(Node.self())
-    Ambient.bootstrap(pid)
+    #Ambient.bootstrap(pid)
   end
 
   @doc """
   """
   def start_registration_subsystem do
-    Ambient.Registration.start_link(Node.self())
+    #Ambient.Registration.start_link(Node.self())
     Universe.start_local_ambient()
   end
 end

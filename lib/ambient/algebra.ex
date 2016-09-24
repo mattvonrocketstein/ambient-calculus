@@ -66,15 +66,7 @@ defmodule Ambient.Algebra do
   """
   def enter(n, m, _prog \\ Functions.noop) do
     old_parent = Ambient.parent(n)
-    registrar = Ambient.registrar(n)
-    case old_parent do
-      nil ->
-        Ambient.Registration.deregister(
-          registrar, Ambient.name(n))
-      _ ->
-        nil
-    end
-    Ambient.reset_parent(n,m)
+    Ambient.reset_parent(n, m)
   end
 
   @doc """

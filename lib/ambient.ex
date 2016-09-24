@@ -13,6 +13,13 @@ defmodule AmbientData do
 end
 
 defmodule Ambient do
+
+  use GenServer
+
+  def handle_cast({:push, item}, state) do
+    {:noreply, [item | state]}
+  end
+
   @moduledoc """
   """
 
@@ -60,39 +67,36 @@ defmodule Ambient do
     {:ok, _} = Universe.assert_unique(atom_name)
     string_name = Atom.to_string(atom_name)
     msg = Functions.red("Ambient[#{string_name}].start_link: ")
-    {:ok, registrar} = Ambient.Registration.default()
-    case registrar != nil && Process.alive?(registrar) do
-      false ->
-        Functions.fatal_error(
-          "Registration must be started "<>
-          "before ambients can be created.  pid #{registrar}")
-      true ->
-        Logger.info "Starting ambient: #{[string_name]}"
-        Logger.info msg <> "creating my supervisor "
-        ambient_data = %AmbientData{
-          parent: nil,
-          registrar: registrar,
-          super: nil,
-          name: atom_name,
-          node: Node.self(),
-          namespace: %{}
-        }
-        Agent.start_link(
-          fn -> ambient_data end,
-          name: atom_name,
-          id: atom_name)
-    end
-  end
-  def bootstrap(pid) when is_pid(pid) do
-    {:ok, registrar} = Ambient.Registration.default()
-    atom_name = Ambient.name(pid)
-    Logger.info "Bootstrapping ambient #{inspect atom_name}"
-    Ambient.Registration.register(
-      registrar, atom_name, pid)
-    {:ok, sup_pid} = Ambient.Supervisor.start_link(
-      atom_name)
-    set_super(pid, sup_pid)
-    {:ok, pid}
+    #{:ok, registrar} = Ambient.Registration.default()
+    #case registrar != nil && Process.alive?(registrar) do
+    #  false ->
+    #    Functions.fatal_error(
+    #      "Registration must be started "<>
+    #      "before ambients can be created.  pid #{registrar}")
+    #  true ->
+      Logger.info "Starting ambient: #{[string_name]}"
+      Logger.info msg <> "creating my supervisor "
+      ambient_data = %AmbientData{
+        parent: nil,
+        #registrar: registrar,
+        super: nil,
+        name: atom_name,
+        node: Node.self(),
+        namespace: %{}
+      }
+      {:ok, pid} = GenServer.start_link(
+        Ambient, ambient_data,
+        name: atom_name)
+      :pg2.create(:ambients)
+      :pg2.join(:ambients, pid)
+      {:ok, sup_pid} = Ambient.Supervisor.start_link(
+        atom_name)
+      set_super(pid, sup_pid)
+      {:ok, pid}
+      #Agent.start_link(
+      #  fn -> ambient_data end,
+      #  name: atom_name,
+      #  id: atom_name)
   end
 
   @doc """
@@ -101,14 +105,22 @@ defmodule Ambient do
   def get(ambient) when Kernel.is_pid(ambient) do
     #case Process.alive?(ambient) do
     #  true ->
-        Agent.get(ambient, fn ambient_data -> ambient_data end)
+        #Agent.get(ambient, fn ambient_data -> ambient_data end)
+        GenServer.call(ambient, {:get})
     #  false ->
     #    %{}
     #  end
   end
-
+  def handle_call({:get},_from, ambient_data) do
+    {:reply, ambient_data, ambient_data}
+  end
   def get_from_ambient(ambient, var) do
-    Agent.get(ambient, fn ambient_data -> Map.get(ambient_data, var) end)
+    #Agent.get(ambient, fn ambient_data -> Map.get(ambient_data, var) end)
+    GenServer.call(ambient, {:get_from_ambient,var})
+    #, fn ambient_data -> Map.get(ambient_data, var) end)
+  end
+  def handle_call( {:get_from_ambient,var},_from, ambient_data) do
+    {:reply, Map.get(ambient_data, var), ambient_data}
   end
 
   def namespace(ambient) do
@@ -119,32 +131,36 @@ defmodule Ambient do
   Return value of `var` according to `ambient`
   """
   def get_from_namespace(ambient, var) do
-    Agent.get(ambient, fn ambient_data ->
-      Map.get(Map.get(ambient_data, :namespace), var)
-    end)
+    #Agent.get(ambient, fn ambient_data ->
+    #  Map.get(Map.get(ambient_data, :namespace), var)
+    #end)
+    GenServer.call(ambient, {:get_from_namespace, var})
+  end
+  def handle_call({:get_from_namespace, var},_from, ambient_data) do
+    {:reply, Map.get(ambient_data, var), ambient_data}
   end
 
   @doc """
   Writes a new value of `var` for `ambient`
   """
   def put(ambient, var, val) do
-    namespace = ambient
-    |> Ambient.namespace()
+    GenServer.call(ambient, {:put, var, val})
+  end
+  def handle_call({:put, var, val}, _from, ambient_data) do
+    namespace = ambient_data|>Map.get(:namespace)
     |> Map.put(var, val)
-    Agent.update(ambient, fn ambient_data ->
-      %{ambient_data | namespace: namespace}
-    end)
+     {:reply, :ok, %{ambient_data|namespace: namespace}}
   end
   def push(ambient, var, val), do: put(ambient, var, val)
 
   def pop(ambient, var) do
-    namespace = Ambient.namespace(ambient)
-    {val, namespace} = namespace |>  Map.pop(var)
-    Agent.update(ambient,
-      fn ambient_data ->
-        %{ambient_data | namespace: namespace}
-      end)
-    {val, namespace}
+    GenServer.call(ambient, {:pop, var})
+  end
+
+  def handle_call({:pop, var}, _from, ambient_data) do
+    namespace = ambient_data |> Map.get(:namespace)
+    {val, namespace} = Map.pop(namespace, var)
+    {:reply, val, namespace}
   end
 
   def parent(nil), do: nil
@@ -215,9 +231,9 @@ defmodule Ambient do
   Remove sub-ambient `ambient2` from parent `ambient1`
   """
   def remove_ambient(nil, ambient2) do
-    Ambient.Registration.deregister(
-      Ambient.registrar(ambient2),
-      ambient2)
+    #Ambient.Registration.deregister(
+    #  Ambient.registrar(ambient2),
+    #  ambient2)
   end
   def remove_ambient(ambient1, ambient2) do
     ambient1 = Universe.lookup(ambient1)
@@ -248,14 +264,17 @@ defmodule Ambient do
     set_parent(ambient, new_parent)
   end
   defp set_base(ambient, var, val) do
-    Agent.update(
-      ambient,
-      fn ambient_data ->
-        Map.put(ambient_data, var, val)
-      end)
-
+    GenServer.call(ambient,{:set_base, var, val})
   end
+  def handle_call({:set_base,var,val},_from,ambient_data) do
+    #Agent.update(
+    #  ambient,
+    #  fn ambient_data ->
+    #    Map.put(ambient_data, var, val)
+    #  end)
+    {:reply, :ok, Map.put(ambient_data, var, val)}
+  end
+
   defp set_parent(ambient, new_parent), do: set_base(ambient, :parent, new_parent)
   defp set_super(ambient, new_super), do: set_base(ambient, :super, new_super)
-
 end

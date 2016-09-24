@@ -22,7 +22,8 @@ defmodule AmbientCalculus.Mixfile do
       mod: {Ambient.App, [Node.self]},
       applications: [
       :logger,
-      :gproc,
+      #:gproc,
+      #:pg2,
       ],
     ]
   end
@@ -42,7 +43,8 @@ defmodule AmbientCalculus.Mixfile do
         git: "https://github.com/icanhazbroccoli/ex_slp_tk.git",
         tag: "6ce8d" },
 
-      {:gproc, "~> 0.5.0"},
+      #{:gproc, "~> 0.5.0"},
+      #{:pg2}
       {:apex, "~>0.5.2"},
 
       # a linter for elixir code
