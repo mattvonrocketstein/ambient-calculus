@@ -10,8 +10,8 @@ defmodule Ambient.Supervisor do
   def init([ambient_name]) when is_atom(ambient_name) do
     msg = Functions.red "Ambient[#{ambient_name}].Supervisor: "
     Logger.info(msg <> "starting")
-    programs = []
-    children = programs ++ []
+    progspace = []
+    children = progspace ++ []
     opts = [strategy: :one_for_all]
     supervise(children, opts)
   end

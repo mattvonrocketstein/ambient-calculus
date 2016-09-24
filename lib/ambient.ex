@@ -2,14 +2,13 @@ require Logger
 
 defmodule AmbientData do
   defstruct(name: :"UnknownAmbient",
-    parent: nil,
-    registrar: nil,
-    super: nil,
-    pid: nil,
-    node: :"UnknownNode",
+    parent:    nil,
+    super:     nil,
+    pid:       nil,
+    node:      :"UnknownNode",
     namespace: %{},
-    ambients: %{},
-    programs: [],
+    ambients:  %{},
+    progspace: %{},
     )
 end
 
