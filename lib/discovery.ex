@@ -1,5 +1,30 @@
 require Logger
 
+defmodule Discovery.Supervisor do
+  use Supervisor
+
+  def start_link do
+      Supervisor.start_link(__MODULE__, [], name: __MODULE__)
+    end
+
+  def init([]) do
+    children = [
+      # a periodic task for discovering other registered elixir nodes
+      worker(
+        Task, [ &Discovery.discover/0 ],
+        id: SLPNodeDiscover,
+        restart: :permanent,
+        ),    # a periodic task for (re)registering with the OpenSLP daemon
+      # hint: run "sudo /etc/init.d/slpd start"
+      worker(
+        Task, [&Discovery.register/0],
+        id: :SLPNodeRegister,
+        restart: :permanent)
+    ]
+    supervise(children, strategy: :one_for_one)
+  end
+end
+
 defmodule Discovery do
 
   def discover() do
@@ -42,8 +67,7 @@ defmodule Discovery do
       #Functions.red("SLP Discovery: ")
   end
   def register() do
-    #{hostname, port} ={"127.0.0.1", "65535"}
-    {:ok, _result} = ExSlp.Service.register()#{}"service:exslp://#{hostname},#{port}")
+    {:ok, _result} = ExSlp.Service.register()
     if Display.enabled? do
       Logger.info Functions.red("Ran registration task:")<>" ok"
     end

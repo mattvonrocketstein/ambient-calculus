@@ -60,39 +60,13 @@ defmodule Universe.Supervisor do
     #Logger.info "  display: #{inspect display_flag}"
     children = if(
       display_flag, do:
-          [worker(Task, [fn ->
-            Enum.map(
-              0..10, fn _ ->
-                  Display.display()
-                  :timer.sleep(1000)
-                end)
-          end],
-          id: :sleeper,
-          restart: :permanent)],
+          [
+            supervisor(Display.Supervisor, [])
+          ],
         else:
           []
         )
     children
-  end
-  @doc """
-  Return a list of discovery-related children,
-  or maybe an empty list as applicable, base on Mix.env
-  """
-  def discovery_children do
-    [
-    # a periodic task for (re)registering with the OpenSLP daemon
-    # hint: run "sudo /etc/init.d/slpd start"
-    worker(
-      Task, [&Discovery.register/0],
-      id: :SLPNodeRegister,
-      restart: :permanent),
-
-    # a periodic task for discovering other registered elixir nodes
-    worker(
-      Task, [ &Discovery.discover/0 ],
-      id: SLPNodeDiscover,
-      restart: :permanent,
-      ),]
   end
   @doc """
   Return a list of registration-related children,
@@ -100,7 +74,6 @@ defmodule Universe.Supervisor do
   """
   def registration_children do
     [
-      #supervisor(SLPNodeRegister, []),
       # periodic worker worker who starts the registration agent
       worker(
           Task, [&Universe.start_registration_subsystem/0 ],
@@ -117,7 +90,8 @@ defmodule Universe.Supervisor do
 
   def init([]) do
     Functions.write_red("Universe.init called")
-    children = discovery_children() ++
+    children = [
+        supervisor(Discovery.Supervisor, []) ] ++
       registration_children() ++
       display_children
     opts = [

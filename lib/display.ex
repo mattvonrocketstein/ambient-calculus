@@ -1,4 +1,30 @@
 require Logger
+defmodule Display.Supervisor do
+
+  use Supervisor
+
+  def start_link do
+      Supervisor.start_link(
+        __MODULE__, [], name: __MODULE__)
+  end
+
+  def init([]) do
+    children = [
+      worker(Task, [fn ->
+        Enum.map(
+          0..10000, fn _ ->
+              Display.display()
+              :timer.sleep(1000)
+            end)
+      end],
+      id: :sleeper,
+      restart: :permanent)
+    ]
+    supervise(children, strategy: :one_for_one)
+  end
+end
+
+
 defmodule Display do
   def enabled?() do
     Application.get_env(
