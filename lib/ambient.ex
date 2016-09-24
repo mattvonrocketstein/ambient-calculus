@@ -52,14 +52,6 @@ defmodule Ambient do
   the ambient by name instead of using a PID.
   """
   def start_link(_any)
-  def start_many([name | name_list], work_so_far\\%{}) do
-    {:ok, pid} = start_link(name)
-    work_so_far = Map.put(work_so_far, name, pid)
-    case Enum.empty?(name_list) do
-      true -> work_so_far
-      false -> start_many(name_list, work_so_far)
-    end
-  end
   def start_link(string_name) when is_bitstring(string_name) do
     start_link(String.to_atom(string_name))
   end
@@ -156,12 +148,28 @@ defmodule Ambient do
   def pop(ambient, var) do
     GenServer.call(ambient, {:pop, var})
   end
-
   def handle_call({:pop, var}, _from, ambient_data) do
     namespace = ambient_data |> Map.get(:namespace)
     {val, namespace} = Map.pop(namespace, var)
-    {:reply, val, namespace}
+    {:reply, {val, namespace}, namespace}
   end
+
+  @doc """
+  Removes sub-ambient `ambient2` from parent `ambient1`
+  """
+  def remove_ambient(nil, ambient2), do: :ok
+  def remove_ambient(ambient1, ambient2) do
+    ambient1 = Universe.lookup(ambient1)
+    ambient2 = Universe.lookup(ambient2)
+    GenServer.cast(ambient1, {:remove_ambient, ambient2})
+  end
+  def handle_cast({:remove_ambient, ambient2}, ambient_data) do
+    ambients=Map.get(ambient_data, :ambients)
+    |> Enum.filter(fn {_name, pid} -> pid != ambient2 end)
+    |> Enum.into(Map.new)
+    result = %{ ambient_data | ambients: ambients }
+    {:noreply, result}
+    end
 
   def parent(nil), do: nil
   def parent(ambient), do: get_from_ambient(ambient, :parent)
@@ -227,32 +235,15 @@ defmodule Ambient do
     Node.self()==get_from_ambient(ambient, :node)
   end
 
-  @doc """
-  Remove sub-ambient `ambient2` from parent `ambient1`
-  """
-  def remove_ambient(nil, ambient2) do
-    #Ambient.Registration.deregister(
-    #  Ambient.registrar(ambient2),
-    #  ambient2)
-  end
-  def remove_ambient(ambient1, ambient2) do
-    ambient1 = Universe.lookup(ambient1)
-    ambient2 = Universe.lookup(ambient2)
-    Agent.update(ambient1, fn ambient_data ->
-      %{ambient_data | ambients: Enum.into(
-        Enum.filter(
-          Ambient.get_ambients(ambient1),
-          fn {_name, pid} -> pid != ambient2 end),
-        Map.new) }
-    end)
-  end
   defp add_ambient(new_parent, ambient) do
-    Agent.update(new_parent, fn ambient_data ->
+    GenServer.cast(new_parent, {:add_ambient, ambient})
+  end
+  def handle_cast({:add_ambient, ambient}, ambient_data) do
       ambients = Map.get(ambient_data, :ambients)
       |> Map.put(Ambient.name(ambient), ambient)
-      %{ambient_data | ambients: ambients}
-    end)
+      {:noreply, %{ambient_data | ambients: ambients}}
   end
+
   def reset_parent(ambient, new_parent) do
     ambient = Universe.lookup(ambient)
     new_parent = Universe.lookup(new_parent)
@@ -275,6 +266,7 @@ defmodule Ambient do
     {:reply, :ok, Map.put(ambient_data, var, val)}
   end
 
+  def set_namespace(ambient,new_namespace), do: set_base(ambient, :namespace, new_namespace)
   defp set_parent(ambient, new_parent), do: set_base(ambient, :parent, new_parent)
   defp set_super(ambient, new_super), do: set_base(ambient, :super, new_super)
 end

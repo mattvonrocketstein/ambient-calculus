@@ -23,6 +23,18 @@ defmodule Ambient.Algebra do
   """
   def open(n) do
     Logger.info("opening #{Ambient.name(n)}")
+    this_parent = Ambient.parent(n)
+    this_namespace = Ambient.namespace(n)
+    if this_parent==nil do
+        Display.write("warning", "opening top-level ambient may have undesired effect")
+        :noop
+    else
+          parent_namespace = Ambient.namespace(this_parent)
+          |> Map.merge(this_namespace)
+          Ambient.set_namespace(this_parent, parent_namespace)
+          Ambient.reset_parent(n, nil)
+          GenServer.stop(n)
+    end
   end
 
   @doc """

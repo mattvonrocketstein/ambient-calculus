@@ -2,6 +2,10 @@ defmodule Ambient.App do
   use Application
   require Logger
 
+  def get_env(key, default) do
+    Application.get_env(:ambientcalculus, key, default)
+  end
+
   defmodule Soopervisor do
     @moduledoc """
     """

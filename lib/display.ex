@@ -26,12 +26,15 @@ end
 
 
 defmodule Display do
-  def enabled?() do
-    Application.get_env(
-      :ambientcalculus,
-      :display_loop,
-      false)
+  def write(msg), do: write("info:", msg)
+  def write(header, msg) when is_bitstring(header) do
+    if Display.enabled? do
+      Logger.info Functions.red("#{header}: ") <> "#{inspect msg}"
+    end
   end
+
+  def enabled?(), do: Ambient.App.get_env(:display_loop, false)
+
   def display_cluster_members() do
     Logger.info "ClusterMembers: " <> Enum.join(Ambient.Topology.cluster,", ")
   end

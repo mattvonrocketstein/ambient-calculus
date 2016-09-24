@@ -30,47 +30,48 @@ defmodule Discovery do
   def discover() do
     slp_services = ExSlp.Service.discover()
     {:ok, this_hostname} = :inet.gethostname()
-    Enum.filter(
-      slp_services,
-      fn service_string ->
+    slp_services
+    |> Enum.map( fn service_string ->
 
-        # HACK:
-        # by default service-strings are constructed with the human-friendly
-        # system hostnames.  this project's `sys.config` config file requires
-        # using an IP address.  what's up with that?
-        normalized_string = String.replace(
-          to_string(service_string),
-          to_string(this_hostname),
-          "127.0.0.1")
+      # HACK:
+      # by default service-strings are constructed with the human-friendly
+      # system hostnames.  this project's `sys.config` config file requires
+      # using an IP address.  what's up with that?
+      normalized_string = String.replace(
+        to_string(service_string),
+        to_string(this_hostname),
+        "127.0.0.1")
 
-        should_skip = normalized_string==Atom.to_string(Node.self())
-        unless(should_skip) do
-          case ExSlp.Service.connect(normalized_string) do
-            # see http://elixir-lang.org/docs/stable/elixir/Node.html#connect/1
-            :ignored ->
-              # Node.connect() ignored a down host
-              #Logger.info("Connection to #{inspect normalized_string} ignored")
-              :noop
-            false ->
-              # Connection failed
-              #Logger.info("Connection to #{inspect normalized_string} failed")
-              :noop
-            true ->
-              # Connection is successful (but not necessarily new)
-              if Display.enabled? do
-                Logger.info(Functions.red("Discovery.discover: ")<>"connected")
-                Logger.info("#{inspect normalized_string}")
-              end
-          end # case
-        end # unless
-      end)
-      #Functions.red("SLP Discovery: ")
+      #make sure we ignore detecting ourselves
+      should_skip = normalized_string==Atom.to_string(Node.self())
+
+      unless(should_skip) do
+        case ExSlp.Service.connect(normalized_string) do
+          # in this case Node.connect() ignored a down host
+          # see http://elixir-lang.org/docs/stable/elixir/Node.html#connect/1
+          :ignored ->
+            #Logger.info("Connection to #{inspect normalized_string} ignored")
+            :noop
+
+          # in this case the Connection failed
+          false ->
+            #Logger.info("Connection to #{inspect normalized_string} failed")
+            :noop
+
+          # in this case Connection is successful (but not necessarily new)
+          true ->
+            if Display.enabled? do
+              Logger.info(Functions.red("Discovery.discover: ")<>"connected")
+              Logger.info("#{inspect normalized_string}")
+            end
+        end # case
+      end # unless
+    end)
+    #Functions.red("SLP Discovery: ")
   end
   def register() do
     {:ok, _result} = ExSlp.Service.register()
-    if Display.enabled? do
-      Logger.info Functions.red("Ran registration task:")<>" ok"
-    end
+    Display.write("Ran registration task", :ok)
     :timer.sleep(5000)
   end
 end

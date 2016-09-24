@@ -57,10 +57,12 @@ defmodule Algebra.Test do
 
   test "open capability", %{ambient1: ambient1, ambient2: ambient2} do
     ambient1|>Ambient.put(:foo, :bar)
+    assert Ambient.namespace(ambient1)[:foo]==:bar
     ambient1|>Ambient.Algebra.enter(ambient2)
+    assert Ambient.parent(ambient1)==ambient2
     assert nil==Ambient.namespace(ambient2)[:foo]
     Ambient.Algebra.open(ambient1)
-    assert :bar==Ambient.namespace(ambient2)[:foo]
+    assert :bar == Ambient.namespace(ambient2)[:foo]
   end
 
   test "entry capability", %{ambient1: ambient1, ambient2: ambient2} do

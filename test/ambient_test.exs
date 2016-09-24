@@ -1,22 +1,14 @@
 defmodule AmbientOTP.Test do
   use ExUnit.Case, async: true
+
   # "setup_all" is called once to setup the case before any test is run
   setup_all do
     IO.puts "Starting AmbientOTP Test"
     :ok # No metadata
   end
+
   test "basic start_link" do
-    {:ok, pid} = Ambient.get_or_start(:whatever)
-  end
-  test "Ambient.start_many()" do
-    ambients = [:x1, :x2, :x3]
-    |> Ambient.start_many()
-    count = ambients |> Enum.count
-    assert count == 3
-    assert :x1 in ambients
-    pid = Map.values(ambients)
-    |>Enum.fetch(1)
-    assert is_pid(pid)
+    {:ok, pid} = Ambient.start_link(:whatever)
   end
 end
 defmodule AmbientBase.Test do
@@ -32,7 +24,7 @@ defmodule AmbientBase.Test do
   setup do # called before each test is run
     # important, otherwise Ambient.open() will fail
     # tests because it calls Agent.stop()
-    Process.flag(:trap_exit, true)
+    #Process.flag(:trap_exit, true)
     #on_exit fn ->
       #IO.puts "This is invoked once the test is done
     #  :noop
@@ -81,7 +73,7 @@ defmodule AmbientBase.Test do
     assert namespace[:foo] == :bar
     {:bar, updated_namespace} = Ambient.pop(
       ambient1, :foo)
-    updated_namespace == Ambient.get(ambient1)
+    assert updated_namespace == Ambient.get(ambient1)
     assert not Map.has_key?(updated_namespace, :foo)
   end
 
