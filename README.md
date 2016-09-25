@@ -1,41 +1,33 @@
 # ambient-calculus
+
 ## About
 
-[ex_slp](https://github.com/icanhazbroccoli/ex_slp_tk)
-[discovery with consul](https://github.com/undeadlabs/discovery)
+See a full description of this project [here](https://mattvonrocketstein.github.io/heredoc/elixir-ambient-calculus.html)
 
 ## Prerequisites
 
-Installing elixir: [see instructions here](http://elixir-lang.org/install.html#unix-and-unix-like)
+### Installing Elixir
 
-Installing OpenSLP:
+[See instructions here](http://elixir-lang.org/install.html#unix-and-unix-like)
 
-    sudo apt-get install slpd libslp-dev libslp1 slptool
-    sudo /etc/init.d/slpd start
+### Installing OpenSLP
+
+This app uses [ex_slp](https://github.com/icanhazbroccoli/ex_slp_tk) for node discovery and clustering.
+
+There's an ubuntu package for `slpd` and `slp-tool`, and there's also a [docker image](https://hub.docker.com/r/vcrhonek/openslp/) that has both.  To install and verify installation for debian based systems use something like what you see below.
+
+    :::bash
+    $ sudo apt-get install slpd slp-tool
+    $ sudo /etc/init.d/slpd restart
+    $ slptool --version
+
+You'll want to install the command line tool regardless, but it's possible to use the daemon via docker:
+
+    :::bash
+    # Run slpd via docker and background it
+    $ docker run -d -p 427:427/tcp -p 427:427/udp  --name openslp vcrhonek/openslp
 
 ## Installation
-
-### As a library
-
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed as:
-
-  1. Add `ambient-calculus` to your list of dependencies in `mix.exs`:
-
-    ```elixir
-    def deps do
-      [{:ambient-calculus, "~> 0.1.0"}]
-    end
-    ```
-
-  2. Ensure `ambient-calculus` is started before your application:
-
-    ```elixir
-    def application do
-      [applications: [:ambientcalculus]]
-    end
-    ```
-
-### For developers
 
 **Clone this repository and enter source root**
 
@@ -45,8 +37,10 @@ If [available in Hex](https://hex.pm/docs/publish), the package can be installed
 **Install Elixir project dependencies**
 
     $ mix deps.get
+    $ mix compile
 
-## Mix commands
+
+## For developers
 
 ### Run tests
 
@@ -71,7 +65,7 @@ Thereafter, just run
 
     $ mix dialyzer
 
-## Installing project pre-commit hooks
+### Installing project pre-commit hooks
 
     $ cd ambient-calculus
     $ sudo pip install pre-commit
