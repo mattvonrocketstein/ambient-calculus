@@ -54,27 +54,23 @@ defmodule Ambient.Algebra do
     Ambient.reset_parent(ambient, grandparent)
     {:ok, grandparent}
   end
+
   @doc """
-  Answers how many (concurrent) programs this ambient is running
+  Answers how many (concurrent) programs this ambient has.  When `running` is
+  true, the ProgSpace supervisor must be consulted directly.  When `running` is
+ false, it's enough to count the named programs registered with the Ambient.
   """
-  def count(ambient) do
-      2
-      #sooper = Ambient.get_supervisor(ambient)
-      #case Process.alive?(sooper) do
-      #  true ->
-      #    Supervisor.count_children()
-      #  false ->
-      #    nil
-      #end
+  def count_progs(ambient, running\\false) do
+      case running do
+        false -> Ambient.progspace(ambient) |> Map.keys() |> Enum.count
+        true -> Ambient.progman(ambient) |> Supervisor.count_children()
+      end
   end
 
   @doc """
   Entry Capability (aka "in")
   An entry capability, in m, can be used in the action: "in m.P"
   which instructsthe ambient surrounding in m. P to enter a sibling ambient named m.
-  TODO:
-    If no sibling m can be found, the operation blocks until a time when such a sibling
-    exists. If more than one m sibling exists, any one of them can be chosen.
   """
   def enter(ambient1, ambient2, prog\\Functions.noop)
   def enter(ambient1, ambient2, prog) when is_atom(ambient1) and is_atom(ambient2) do
@@ -88,17 +84,15 @@ defmodule Ambient.Algebra do
   @doc """
   Adds program `p` to the set of concurrent programs executing inside `ambient`.
   (Implementation: adding `p` to the child-list for the supervisor of `ambient`)
-
   """
-  def add_program(ambient, p) do
+  def add_program(ambient, name, p) when is_function(p,1) do
     msg = "Adding program [#{inspect p}] to "
-    msg = msg <> "[#{inspect Ambient.to_string(ambient)}]"
+    msg = msg <> "Ambient[#{Ambient.name(ambient)}]"
     Logger.info msg
-    super_pid = Ambient.get_supervisor(ambient)
-    # FIXME: is this spec correct?
-    #Ambient.Supervisor.add_child(
-    #  super_pid,
-    #  Task([fn -> p end]))
+    GenServer.cast({:add_program, name, p})
+    import Supervisor.Spec
+    super_pid = Ambient.progman(ambient)
+    |> Supervisor.start_child(p)
   end
 
 end

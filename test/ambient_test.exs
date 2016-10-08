@@ -11,6 +11,7 @@ defmodule AmbientOTP.Test do
     {:ok, _pid} = Ambient.start_link(:whatever)
   end
 end
+
 defmodule AmbientBase.Test do
   use ExUnit.Case, async: true
 
@@ -77,10 +78,11 @@ defmodule AmbientBase.Test do
     assert not Map.has_key?(updated_namespace, :foo)
   end
 
-  test "nested ambients",ctx do
+  test "ambient siblings",ctx do
     ambient1 = ctx.ambient1
     ambient2 = ctx.ambient2
-    Ambient.push(ambient1, :ambient2, ambient2)
+    siblings = Ambient.Topology.siblings(ambients)
+    assert ambient2 in Map.values(sibling)
   end
 
   test "default parent is toplevel",%{ambient1: ambient1} do

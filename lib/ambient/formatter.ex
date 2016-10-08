@@ -16,7 +16,7 @@ defmodule Ambient.Formatter do
         %{
           children: format_children(ambient),
           namespace: Ambient.namespace(ambient),
-          local: Ambient.local?(ambient)
+          local: Ambient.Topology.local?(ambient)
         }
 
     end

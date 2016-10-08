@@ -1,100 +1,58 @@
 require Logger
 
-defmodule AmbientData do
-  defstruct(name: :"UnknownAmbient",
-    parent:    nil,
-    super:     nil,
-    pid:       nil,
-    node:      :"UnknownNode",
-    namespace: %{},
-    ambients:  %{},
-    progspace: %{},
-    )
-end
+defmodule AmbientStruct do
+      defstruct(
+        name:      :"UnknownAmbient", # atom representing this ambient's name
+        node:      :"UnknownNode",    # atom representing the Node this ambient resides in
+        parent:    nil,               # PID for parent ambient (a genserver)
+        progman:   nil,               # PID for progspace manager (a supervisor)
+        pid:       nil,               # PID for this ambient (a genserver)
+        namespace: %{},               # %{ :var => val }
+        ambients:  %{},               # %{ :ambient_name => ambient_pid }
+        progspace: %{},               # %{ :program_name => task_function }
+        )
+    end
 
 defmodule Ambient do
 
   use GenServer
+  import Ambient.Topology
 
   @moduledoc """
   """
 
-  @doc """
-  Consults the registry to return an ambient with the given name or nil
-  """
-  def to_string(ambient) when is_pid(ambient) do
-    name = Ambient.name(ambient)
-    num_progs = Ambient.Algebra.count(ambient)
-    "<Ambient:#{inspect name} progs=[#{inspect num_progs}]>]"
-  end
-
-  @doc """
-  Starts a Ambient with the given `name`.
-  The name is given as a name so we can identify
-  the ambient by name instead of using a PID.
-  """
-  def start_link(_any)
-  def start_link(string_name) when is_bitstring(string_name) do
-    start_link(String.to_atom(string_name))
-  end
-
-  def start_link(atom_name) when is_atom(atom_name) do
-    {:ok, _} = Universe.assert_unique(atom_name)
-    string_name = Atom.to_string(atom_name)
-    Logger.info "Starting ambient: #{[string_name]}"
-    ambient_data = %AmbientData{
-      parent: nil,
-      #registrar: registrar,
-      super: nil,
-      name: atom_name,
-      node: Node.self(),
-      namespace: %{}
-    }
-    {:ok, pid} = GenServer.start_link(
-      Ambient, ambient_data, name: atom_name)
-    Ambient.Topology.register(pid)
-    {:ok, sup_pid} = Ambient.Supervisor.create_for(pid)
-    set_super(pid, sup_pid)
-    {:ok, pid}
-  end
 
   @doc """
   Gets all the data currently in `ambient`.
   """
   def get(ambient) when Kernel.is_pid(ambient) do
-    #case Process.alive?(ambient) do
-    #  true ->
-        #Agent.get(ambient, fn ambient_data -> ambient_data end)
-        GenServer.call(ambient, {:get})
-    #  false ->
-    #    %{}
-    #  end
+    GenServer.call(ambient, {:get})
   end
+
   def get_from_ambient(ambient, var) do
     GenServer.call(ambient, {:get_from_ambient, var})
   end
 
+  @doc """
+  Returns the namespace for this ambient
+  """
   def namespace(ambient) do
     get_from_ambient(ambient, :namespace)
   end
 
   @doc """
-  Return value of `var` according to `ambient`
+  Returns the value of `var` according to this ambient's namespace
   """
   def get_from_namespace(ambient, var) do
-    #Agent.get(ambient, fn ambient_data ->
-    #  Map.get(Map.get(ambient_data, :namespace), var)
-    #end)
     GenServer.call(ambient, {:get_from_namespace, var})
   end
 
   @doc """
-  Writes a new value of `var` for `ambient`
+  Writes a new value of `var` for ambient's namespace
   """
   def put(ambient, var, val) do
     GenServer.call(ambient, {:put, var, val})
   end
-  def push(ambient, var, val), do: put(ambient, var, val)
 
   def pop(ambient, var) do
     GenServer.call(ambient, {:pop, var})
@@ -112,76 +70,67 @@ defmodule Ambient do
 
   def parent(nil), do: nil
   def parent(ambient), do: get_from_ambient(ambient, :parent)
-
   def name(ambient), do: get_from_ambient(ambient, :name)
-  def get_supervisor(ambient), do: Ambient.get_from_ambient(ambient, :super)
-
-  def registrar(ambient), do: get_from_ambient(ambient, :registrar)
-
+  def progman(ambient), do: Ambient.get_from_ambient(ambient, :progman)
+  def progspace(ambient), do: Ambient.get_from_ambient(ambient, :progspace)
   def node(ambient), do: get_from_ambient(ambient, :node)
   def children(ambient), do: get_from_ambient(ambient, :ambients)
 
   @doc """
-  Answers whether an ambient named `name` is inside of ambient `ambient`
+  Answers whether an ambient (name or pid) `name` is inside of another ambient
   """
   def has_child?(ambient, name) when is_atom(name) do
     name in Map.keys(Ambient.children(ambient))
   end
-  @doc """
-  Answers whether an ambient with pid `pid` is inside of ambient `ambient`
-  """
   def has_child?(ambient, pid) when is_pid(pid) do
     pid in Map.values(Ambient.children(ambient))
   end
 
   @doc """
-  Returns an answer for whether this ambient is
-  healthy.  This can be hard to determine, depending
-  on whether the ambient is remote or not
+  Returns a list of complaints about this ambient's health status,
+  and empty list if there are no health isses
   """
   def health_issues(ambient) do
     ambient = Universe.lookup(ambient)
-    issues = case Ambient.local?(ambient) do
-      true ->
-        if not Process.alive?(ambient) do
-          ["local process is not alive"]
-        else
-          []
-        end
-      false ->
-        node = Ambient.node(ambient)
-        respond_to = self()
-        Node.spawn_link(node, fn ->
-          send respond_to, Process.alive?(ambient)
-        end)
-
-        receive do
-          aliveness ->
-            case aliveness do
-              true ->
-                []
-              false ->
-                ["remote node reports process is not alive"]
-            end
-        after 2_000 ->
-          ["timeout asking remote node if process is alive"]
-        end
-    end
+    issues = []
+    issues = issues ++
+      case Process.alive?(ambient) do
+        true  -> []
+        false -> ["local process is dead"]
+      end
+    issues = issues ++
+      case Process.alive?(Ambient.progman(ambient)) do
+        true  -> []
+        false -> ["progsman is dead; progspace is unsupervised"]
+      end
     issues
   end
-
   def healthy?(ambient) do
     Enum.empty?(health_issues(ambient))
   end
 
-  def remote?(ambient), do: not local?(ambient)
-
-  def local?(ambient) do
-    Node.self()==get_from_ambient(ambient, :node)
-  end
-
   defp add_ambient(new_parent, ambient) do
     GenServer.cast(new_parent, {:add_ambient, ambient})
+  end
+  def add_program(ambient, name, fxn) when is_atom(name) and is_function(fxn, 1) do
+    IO.puts "Adding program #{inspect name} "<>
+      "to ambient '#{inspect Ambient.name(ambient)}'"
+    wrapper = fn -> fxn.(%{}) end
+    GenServer.cast(
+      ambient,
+      { :add_program, name, wrapper})
+  end
+  def start_program(ambient, name) do
+    IO.puts "Starting program #{inspect name} "<>
+      "in ambient '#{inspect Ambient.name(ambient)}'"
+    wrapper = Ambient.progspace(ambient)
+    |>Map.get(name)
+    ambient
+    |> Ambient.progman()
+    |> Task.Supervisor.start_child(wrapper)
+  end
+  defp set_base(ambient, var, val) do
+    GenServer.call(ambient,{:set_base, var, val})
   end
 
   def reset_parent(ambient, new_parent) do
@@ -194,21 +143,57 @@ defmodule Ambient do
     add_ambient(new_parent, ambient)
     set_parent(ambient, new_parent)
   end
-  defp set_base(ambient, var, val) do
-    GenServer.call(ambient,{:set_base, var, val})
+
+  defp set_parent(ambient, new_parent), do: set_base(ambient, :parent, new_parent)
+  def set_namespace(ambient,new_namespace), do: set_base(ambient, :namespace, new_namespace)
+  def set_progman(ambient, new_super), do: set_base(ambient, :progman, new_super)
+
+  @doc """
+  Starts a Ambient with the given `name`.
+  The name is given as a name so we can identify
+  the ambient by name instead of using a PID.
+  """
+  def start_link(_any)
+  def start_link(string_name) when is_bitstring(string_name) do
+    start_link(String.to_atom(string_name))
   end
 
-  def set_namespace(ambient,new_namespace), do: set_base(ambient, :namespace, new_namespace)
-  defp set_parent(ambient, new_parent), do: set_base(ambient, :parent, new_parent)
-  defp set_super(ambient, new_super), do: set_base(ambient, :super, new_super)
-
+  def start_link(atom_name) when is_atom(atom_name) do
+    {:ok, _} = Universe.assert_unique(atom_name)
+    string_name = Atom.to_string(atom_name)
+    Logger.info "Starting ambient: #{[string_name]}"
+    ambient_data = %AmbientStruct{
+      name:    atom_name,
+      node:    Node.self(),
+      parent:  nil,
+      progman: nil,
+      namespace: %{}
+    }
+    {:ok, pid} = GenServer.start_link(
+      Ambient, ambient_data, name: atom_name)
+    Ambient.Topology.register(pid)
+    {:ok, sup_pid} = ProgSpace.create_for(pid)
+    Ambient.set_progman(pid, sup_pid)
+    {:ok, pid}
+  end
   def handle_cast({:add_ambient, ambient}, ambient_data) do
       ambients = Map.get(ambient_data, :ambients)
       |> Map.put(Ambient.name(ambient), ambient)
       {:noreply, %{ambient_data | ambients: ambients}}
   end
-  def handle_cast({:push, item}, state) do
-    {:noreply, [item | state]}
+  def handle_cast({:add_program, name, fxn}, ambient_data) do
+    import Supervisor.Spec
+    progspace = Map.get(ambient_data, :progspace)
+    |> Map.put(name, fxn)
+    result = %{ ambient_data | progspace: progspace }
+    {:noreply, result}
+  end
+  def handle_cast({:start_program, name}, ambient_data) do
+    wrapper_fxn = Map.get(ambient_data, :progspace)
+    |> Map.get(name)
+    progman = Map.get(ambient_data, :progman)
+    Task.Supervisor.start_child(progman, wrapper_fxn)
+    {:noreply, ambient_data}
   end
   def handle_cast({:remove_ambient, ambient2}, ambient_data) do
     ambients=Map.get(ambient_data, :ambients)

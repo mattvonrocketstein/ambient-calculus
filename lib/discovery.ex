@@ -26,27 +26,27 @@ defmodule Discovery.Supervisor do
 end
 
 defmodule Discovery do
+  def normalize(service_string) do
+    {:ok, this_hostname} = :inet.gethostname()
+    # HACK:
+    # by default service-strings are constructed with the human-friendly
+    # system hostnames.
+    normalized_string = String.replace(
+      to_string(service_string),
+      to_string(this_hostname),
+      "127.0.0.1")
 
+  end
   def discover() do
     slp_services = ExSlp.Service.discover()
-    {:ok, this_hostname} = :inet.gethostname()
     slp_services
     |> Enum.map( fn service_string ->
-
-      # HACK:
-      # by default service-strings are constructed with the human-friendly
-      # system hostnames.  this project's `sys.config` config file requires
-      # using an IP address.  what's up with that?
-      normalized_string = String.replace(
-        to_string(service_string),
-        to_string(this_hostname),
-        "127.0.0.1")
-
+      normalized = normalize(service_string)
       #make sure we ignore detecting ourselves
-      should_skip = normalized_string==Atom.to_string(Node.self())
+      should_skip = normalized == Atom.to_string(Node.self())
 
       unless(should_skip) do
-        case ExSlp.Service.connect(normalized_string) do
+        case ExSlp.Service.connect(normalized) do
           # in this case Node.connect() ignored a down host
           # see http://elixir-lang.org/docs/stable/elixir/Node.html#connect/1
           :ignored ->
@@ -62,12 +62,11 @@ defmodule Discovery do
           true ->
             if Display.enabled? do
               Logger.info(Functions.red("Discovery.discover: ")<>"connected")
-              Logger.info("#{inspect normalized_string}")
+              Logger.info("#{inspect normalized}")
             end
         end # case
       end # unless
     end)
-    #Functions.red("SLP Discovery: ")
   end
   def register() do
     {:ok, _result} = ExSlp.Service.register()
