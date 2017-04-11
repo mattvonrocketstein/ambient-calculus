@@ -22,7 +22,8 @@ defmodule AmbientBase.Test do
   end
 
 
-  setup do # called before each test is run
+  setup do
+    # called before each test is run
     # important, otherwise Ambient.open() will fail
     # tests because it calls Agent.stop()
     #Process.flag(:trap_exit, true)
@@ -69,7 +70,7 @@ defmodule AmbientBase.Test do
 
   test "ambient data persistence",ctx do
     ambient1 = ctx.ambient1
-    Ambient.push(ambient1, :foo, :bar)
+    Ambient.put(ambient1, :foo, :bar)
     namespace = Ambient.namespace(ambient1)
     assert namespace[:foo] == :bar
     {:bar, updated_namespace} = Ambient.pop(
@@ -78,14 +79,14 @@ defmodule AmbientBase.Test do
     assert not Map.has_key?(updated_namespace, :foo)
   end
 
-  test "ambient siblings",ctx do
+  test "ambient siblings", ctx do
     ambient1 = ctx.ambient1
     ambient2 = ctx.ambient2
-    siblings = Ambient.Topology.siblings(ambients)
+    sibling = Ambient.Topology.siblings(ambient1)
     assert ambient2 in Map.values(sibling)
   end
 
-  test "default parent is toplevel",%{ambient1: ambient1} do
+  test "default parent is toplevel", %{ambient1: ambient1} do
     assert Ambient.parent(ambient1) == nil
   end
 

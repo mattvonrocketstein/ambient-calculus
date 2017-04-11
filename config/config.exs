@@ -7,6 +7,8 @@ extra_config_fpath = "#{Mix.env}.exs"
 #Logger.info IO.ANSI.red()<>"MIX_ENV: "<>IO.ANSI.reset()<>Mix.env
 #Logger.info "  loading config: "<>extra_config_fpath
 import_config extra_config_fpath
+config :ex_slp,
+  slptool: "docker run --rm vcrhonek/openslp slptool"
 
 config :logger, :console,
   format: "$time $metadata[$level] $levelpad$message\n",

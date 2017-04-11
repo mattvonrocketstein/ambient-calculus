@@ -58,6 +58,6 @@ defmodule Ambient.Topology do
 
   def siblings(ambient1) do
     parent = Ambient.parent(ambient1)
-    filter(fn ambient -> Ambient.parent(ambient)==parent)
+    filter(fn ambient -> Ambient.parent(ambient)==parent end)
   end
 end

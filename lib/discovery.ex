@@ -14,7 +14,8 @@ defmodule Discovery.Supervisor do
         Task, [ &Discovery.discover/0 ],
         id: SLPNodeDiscover,
         restart: :permanent,
-        ),    # a periodic task for (re)registering with the OpenSLP daemon
+        ),
+      # a periodic task for (re)registering with the OpenSLP daemon
       # hint: run "sudo /etc/init.d/slpd start"
       worker(
         Task, [&Discovery.register/0],
@@ -31,7 +32,7 @@ defmodule Discovery do
     # HACK:
     # by default service-strings are constructed with the human-friendly
     # system hostnames.
-    normalized_string = String.replace(
+    String.replace(
       to_string(service_string),
       to_string(this_hostname),
       "127.0.0.1")
