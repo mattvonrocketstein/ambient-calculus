@@ -30,8 +30,8 @@ defmodule Discovery do
   def normalize(service_string) do
     {:ok, this_hostname} = :inet.gethostname()
     # HACK:
-    # by default service-strings are constructed with the human-friendly
-    # system hostnames.
+    # by default service-strings are constructed
+    # with the human-friendly system hostnames.
     String.replace(
       to_string(service_string),
       to_string(this_hostname),
@@ -48,18 +48,19 @@ defmodule Discovery do
 
       unless(should_skip) do
         case ExSlp.Service.connect(normalized) do
-          # in this case Node.connect() ignored a down host
-          # see http://elixir-lang.org/docs/stable/elixir/Node.html#connect/1
+          # Node.connect() ignored a down host
+          # http://elixir-lang.org/docs/stable/elixir/Node.html#connect/1
           :ignored ->
             #Logger.info("Connection to #{inspect normalized_string} ignored")
             :noop
 
-          # in this case the Connection failed
+          # the Connection failed
           false ->
             #Logger.info("Connection to #{inspect normalized_string} failed")
             :noop
 
-          # in this case Connection is successful (but not necessarily new)
+          # Connection is successful
+          # (but not necessarily new)
           true ->
             if Display.enabled? do
               Logger.info(Functions.red("Discovery.discover: ")<>"connected")
@@ -70,8 +71,12 @@ defmodule Discovery do
     end)
   end
   def register() do
-    {:ok, _result} = ExSlp.Service.register()
-    Display.write("Ran registration task", :ok)
-    :timer.sleep(5000)
+    case ExSlp.Service.register() do
+      {:error, "errorcode: -19"} ->
+         Display.write("Registration failed")
+      {:ok, _result} ->
+        Display.write("Ran registration task", :ok)
+        :timer.sleep(5000)
+    end
   end
 end

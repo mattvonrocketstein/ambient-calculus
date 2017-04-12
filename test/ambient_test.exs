@@ -36,14 +36,18 @@ defmodule AmbientBase.Test do
     {:ok, ambient2} = Ambient.start_link(:ambient2)
     [
       ambient1: ambient1,
-      ambient2: ambient2
+      ambient2: ambient2,
+      program: fn _x ->
+        Display.write("test program!")
+        :timer.sleep(3000)
+      end,
     ]
   end
 
   # Same as "setup", but receives the context
   # for the current test
   setup context do
-    msg = IO.ANSI.red()<>"\nTesting: "<> IO.ANSI.reset()
+    msg = IO.ANSI.red() <> "\nTesting: "<> IO.ANSI.reset()
     test_bits = String.split(Atom.to_string(context[:test]))
     test_name = test_bits
     |> Enum.slice(1, Enum.count(test_bits))
@@ -51,6 +55,7 @@ defmodule AmbientBase.Test do
     msg = msg <> IO.ANSI.yellow() <> test_name <> IO.ANSI.reset()
     msg = msg<>"\n"
     IO.puts msg
+    :timer.sleep(1000)
     :ok
   end
 
@@ -68,7 +73,7 @@ defmodule AmbientBase.Test do
     IO.puts("#{inspect namespace}")
   end
 
-  test "ambient data persistence",ctx do
+  test "ambient namespace data persistence", ctx do
     ambient1 = ctx.ambient1
     Ambient.put(ambient1, :foo, :bar)
     namespace = Ambient.namespace(ambient1)
@@ -94,4 +99,44 @@ defmodule AmbientBase.Test do
     Ambient.reset_parent(ambient2, ambient1)
     assert Ambient.parent(ambient2) == ambient1
   end
+
+  test "ambient is a sibling of itself", %{ambient1: ambient1} do
+    assert Ambient.Topology.siblings(ambient1)
+    |> Map.keys
+    |> Enum.member?(:ambient1)
+  end
+
+  test "program manager running", %{ambient1: ambient1} do
+     assert Process.alive?(Ambient.progman(ambient1))
+  end
+
+  test "progspace persistence", %{ambient1: ambient1, program: prog} do
+    assert is_function(prog, 1)
+    program_label=:test_program
+    Ambient.add_program(ambient1, program_label, prog)
+    assert ambient1
+    |> Ambient.progspace()
+    |> Map.keys
+    |> Enum.member?(program_label)
+    assert Ambient.Algebra.count_progs(ambient1) == 1
+    assert Ambient.Algebra.count_running_progs(ambient1) == 0
+  end
+
+  test "progman runs programs", %{ambient1: ambient1, program: prog} do
+    program_label = :test_program
+    Ambient.add_program(ambient1, program_label, prog)
+    {:ok, pid} = Ambient.start_program(ambient1, program_label)
+    assert Process.alive?(pid)
+    assert Ambient.Algebra.count_running_progs(ambient1) == 1
+  end
+
+  test "parent/child relationship is not sibling", %{ambient1: ambient1, ambient2: ambient2} do
+    Ambient.reset_parent(ambient2, ambient1)
+    assert Ambient.parent(ambient2) == ambient1
+    siblings = Ambient.Topology.siblings(ambient1)
+    assert not Enum.member?(Map.keys(siblings), :ambient2)
+    siblings = Ambient.Topology.siblings(ambient2)
+    assert not Enum.member?(Map.keys(siblings), :ambient1)
+  end
+  
 end

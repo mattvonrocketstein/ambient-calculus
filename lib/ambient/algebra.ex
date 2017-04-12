@@ -42,17 +42,17 @@ defmodule Ambient.Algebra do
   end
 
   @doc """
-  An exit capability, out m, can be used in the action: "out m.P"
-  which instructs the ambient surrounding out m. P to exit its parent ambient
-  named m.
-"""
+  Exit capability `out m` can be used in the action: "out m.P"
+  which instructs the ambient surrounding out m. P to exit its
+  parent ambient named m.
+  """
   def exit(ambient, parent\\nil) do
     parent = parent || Ambient.parent(ambient)
     if (parent !=  Ambient.parent(ambient)) do
-      #TODO:
+      # TODO:
       #  If the parent is not named m, this operation should block
       #  until a time when such a parent exists.
-      raise "not implemented yet"
+      raise "Not implemented yet"
     end
     grandparent = Ambient.parent(parent)
     Ambient.reset_parent(ambient, grandparent)
@@ -60,17 +60,23 @@ defmodule Ambient.Algebra do
   end
 
   @doc """
-  Answers how many (concurrent) programs this ambient has.  When `running` is
-  true, the ProgSpace supervisor must be consulted directly.  When `running` is
- false, it's enough to count the named programs registered with the Ambient.
+  Answers how many (concurrent) programs this ambient has.  When
+  `running` is true, the ProgSpace supervisor must be consulted
+  directly.  When `running` is false, it's enough to count the
+  named programs registered with the Ambient.
   """
-  def count_progs(ambient, running\\false) do
-      case running do
-        false -> Ambient.progspace(ambient) |> Map.keys() |> Enum.count
-        true -> Ambient.progman(ambient) |> Supervisor.count_children()
-      end
+  def count_progs(ambient) do
+      ambient
+      |> Ambient.progspace()
+      |> Map.keys()
+      |> Enum.count
   end
-
+  def count_running_progs(ambient) do
+    %{active: count} = ambient
+    |> Ambient.progman()
+    |> Supervisor.count_children()
+    count
+  end
   @doc """
   Entry Capability (aka "in")
   An entry capability, in m, can be used in the action: "in m.P"

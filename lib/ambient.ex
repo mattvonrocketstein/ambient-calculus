@@ -77,7 +77,8 @@ defmodule Ambient do
   def children(ambient), do: get_from_ambient(ambient, :ambients)
 
   @doc """
-  Answers whether an ambient (name or pid) `name` is inside of another ambient
+  Answers whether an ambient (name or pid) `name`
+  is inside of another ambient
   """
   def has_child?(ambient, name) when is_atom(name) do
     name in Map.keys(Ambient.children(ambient))
@@ -101,7 +102,7 @@ defmodule Ambient do
     issues = issues ++
       case Process.alive?(Ambient.progman(ambient)) do
         true  -> []
-        false -> ["progsman is dead; progspace is unsupervised"]
+        false -> ["progman is dead; progspace is unsupervised"]
       end
     issues
   end
@@ -144,9 +145,15 @@ defmodule Ambient do
     set_parent(ambient, new_parent)
   end
 
-  defp set_parent(ambient, new_parent), do: set_base(ambient, :parent, new_parent)
-  def set_namespace(ambient,new_namespace), do: set_base(ambient, :namespace, new_namespace)
-  def set_progman(ambient, new_super), do: set_base(ambient, :progman, new_super)
+  defp set_parent(ambient, new_parent) do
+    set_base(ambient, :parent, new_parent)
+  end
+  def set_namespace(ambient,new_namespace) do
+     set_base(ambient, :namespace, new_namespace)
+  end
+  def set_progman(ambient, new_super) do
+     set_base(ambient, :progman, new_super)
+  end
 
   @doc """
   Starts a Ambient with the given `name`.
@@ -183,13 +190,15 @@ defmodule Ambient do
   end
   def handle_cast({:add_program, name, fxn}, ambient_data) do
     import Supervisor.Spec
-    progspace = Map.get(ambient_data, :progspace)
+    progspace = ambient_data
+    |> Map.get(:progspace)
     |> Map.put(name, fxn)
     result = %{ ambient_data | progspace: progspace }
     {:noreply, result}
   end
   def handle_cast({:start_program, name}, ambient_data) do
-    wrapper_fxn = Map.get(ambient_data, :progspace)
+    wrapper_fxn = ambient_data
+    |> Map.get(:progspace)
     |> Map.get(name)
     progman = Map.get(ambient_data, :progman)
     Task.Supervisor.start_child(progman, wrapper_fxn)
@@ -203,7 +212,7 @@ defmodule Ambient do
     {:noreply, result}
   end
 
-  def handle_call({:get_from_namespace, var},_from, ambient_data) do
+  def handle_call({:get_from_namespace, var}, _from, ambient_data) do
     {:reply, Map.get(ambient_data, var), ambient_data}
   end
   def handle_call({:pop, var}, _from, ambient_data) do
@@ -211,17 +220,18 @@ defmodule Ambient do
     {val, namespace} = Map.pop(namespace, var)
     {:reply, {val, namespace}, namespace}
   end
-  def handle_call({:set_base,var,val},_from,ambient_data) do
+  def handle_call({:set_base,var,val}, _from, ambient_data) do
     {:reply, :ok, Map.put(ambient_data, var, val)}
   end
-  def handle_call({:get},_from, ambient_data) do
+  def handle_call({:get}, _from, ambient_data) do
     {:reply, ambient_data, ambient_data}
   end
   def handle_call( {:get_from_ambient, var}, _from, ambient_data) do
     {:reply, Map.get(ambient_data, var), ambient_data}
   end
   def handle_call({:put, var, val}, _from, ambient_data) do
-    namespace = ambient_data|>Map.get(:namespace)
+    namespace = ambient_data
+    |> Map.get(:namespace)
     |> Map.put(var, val)
      {:reply, :ok, %{ambient_data|namespace: namespace}}
   end
