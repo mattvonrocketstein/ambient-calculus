@@ -53,7 +53,7 @@ defmodule AmbientBase.Test do
     |> Enum.slice(1, Enum.count(test_bits))
     |> Enum.join(" ")
     msg = msg <> IO.ANSI.yellow() <> test_name <> IO.ANSI.reset()
-    msg = msg<>"\n"
+    msg = msg#<>"\n"
     IO.puts msg
     :timer.sleep(1000)
     :ok
@@ -94,10 +94,20 @@ defmodule AmbientBase.Test do
   test "default parent is toplevel", %{ambient1: ambient1} do
     assert Ambient.parent(ambient1) == nil
   end
-
-  test "parent assignment", %{ambient1: ambient1, ambient2: ambient2} do
+  test "topology: clustering", _ctx do
+    assert 0==Ambient.Topology.nonlocal_ambients()
+    |> Enum.count
+  end
+  test "topology: locality", %{ambient1: ambient1} do
+    assert not Ambient.Topology.remote?(ambient1)
+    assert Ambient.Topology.local?(ambient1)
+  end
+  test "topology: parent assignment", %{ambient1: ambient1, ambient2: ambient2} do
+    assert not Ambient.has_child?(ambient1, ambient2)
+    assert Ambient.parent(ambient2) == nil
     Ambient.reset_parent(ambient2, ambient1)
     assert Ambient.parent(ambient2) == ambient1
+    assert Ambient.has_child?(ambient1, ambient2)
   end
 
   test "ambient is a sibling of itself", %{ambient1: ambient1} do
@@ -138,5 +148,4 @@ defmodule AmbientBase.Test do
     siblings = Ambient.Topology.siblings(ambient2)
     assert not Enum.member?(Map.keys(siblings), :ambient1)
   end
-  
 end

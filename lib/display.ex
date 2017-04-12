@@ -4,11 +4,13 @@ defmodule Display.Supervisor do
   use Supervisor
 
   def start_link do
+      Logger.info Functions.red("Display.Supervisor.start_link called")
       Supervisor.start_link(
         __MODULE__, [], name: __MODULE__)
   end
 
   def init([]) do
+    Logger.info Functions.red("Display.Supervisor.init called")
     children = [
       worker(Task, [fn ->
         Enum.map(

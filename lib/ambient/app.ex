@@ -11,20 +11,23 @@ defmodule Ambient.App do
     """
     use Supervisor
 
-   def start_link(), do: Supervisor.start_link(__MODULE__, :ok)
+    def start_link() do
+      Supervisor.start_link(__MODULE__, :ok)
+    end
 
-   def init(:ok) do
-     Logger.info Functions.red("Supervisor.init called")
+    def init(:ok) do
+     Logger.info Functions.red("Ambient.App.Soopervisor.init called")
      children = [
-       #worker(Ambient, [:ambient1]),
-       #worker(Ambient, [:ambient2]),
-       #worker(Ambient.Discovery, []),
+       worker(Ambient, [:ambient1]),
+       worker(Ambient, [:ambient2]),
+       worker(Ambient.Discovery, []),
      ]
      supervise(children, strategy: :one_for_one)
-   end
+    end
   end
 
   def start(_type, _args) do
+    Logger.info Functions.red("Ambient.App.start called")
     Universe.Supervisor.start_link()
   end
 end

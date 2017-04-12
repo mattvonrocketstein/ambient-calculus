@@ -99,7 +99,7 @@ defmodule Ambient.Algebra do
     msg = "Adding program [#{inspect p}] to "
     msg = msg <> "Ambient[#{Ambient.name(ambient)}]"
     Logger.info msg
-    GenServer.cast({:add_program, name, p})
+    GenServer.cast(ambient, {:add_program, name, p})
     import Supervisor.Spec
     super_pid = Ambient.progman(ambient)
     |> Supervisor.start_child(p)

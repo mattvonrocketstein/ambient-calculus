@@ -4,10 +4,12 @@ defmodule Discovery.Supervisor do
   use Supervisor
 
   def start_link do
+      Logger.info Functions.red("Discovery.Supervisor.start_link called")
       Supervisor.start_link(__MODULE__, [], name: __MODULE__)
     end
 
   def init([]) do
+    Logger.info Functions.red("Discovery.Supervisor.init called")
     children = [
       # a periodic task for discovering other registered elixir nodes
       worker(

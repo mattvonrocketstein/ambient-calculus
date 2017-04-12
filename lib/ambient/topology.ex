@@ -10,6 +10,7 @@ defmodule Ambient.Topology do
   end
 
   @doc """
+  Add pid to process group
   """
   def register(pid) do
     pg2_handle()

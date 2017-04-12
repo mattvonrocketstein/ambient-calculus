@@ -5,6 +5,7 @@ defmodule AmbientCalculus.Mixfile do
     [app: :ambientcalculus,
      version: "0.1.0",
      elixir: "~> 1.3",
+     ##main_module:
      default_task: "app.start",
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
